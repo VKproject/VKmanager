@@ -1,0 +1,3310 @@
+package beta;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FilenameFilter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+
+import javax.swing.JOptionPane;
+
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+
+/**
+ * <p>Методы, необходимые для осуществления воспроизведения песен.</p>
+ * @methods Подсчет доступных аудиозаписей офлайн
+ * <br> Проверка доступности песни оффлайн
+ */
+class AppFilesWorkMethods {
+	/**
+	 * <p> Считает количество аудиозаписей доступных офлайн по количеству строчек в aids.txt
+	 * @return Количество аудиозаписей, доступных оффлайн
+	 * @throws IOException 
+	 */
+	public static String OfflineCount(String owner) { // Количество доступных офлайн аудиозаписей
+		int count = 0;
+		try {
+			InputStream in = new FileInputStream(System.getProperty("user.home")+"/VK Music Manager/songs.xls");
+			HSSFWorkbook wb = new HSSFWorkbook(in);
+
+			Sheet sheet = wb.getSheetAt(0);
+
+			for (Row row : sheet) 
+				if (row.getCell(1).getStringCellValue().equals(owner)) count++;
+
+			in.close();
+			wb.close();
+
+		} catch (IOException e) {
+			e.printStackTrace();
+			JOptionPane.showMessageDialog(null,
+					"Ошибка доступа к файлам программы. Перезапустите приложение.",
+					"Ошибка",
+					JOptionPane.WARNING_MESSAGE);
+		}
+
+		return Integer.toString(count);
+	}
+
+	/**
+	 * <p> Проверяет доступность песни офлайн
+	 * @param aid Параметр, содержащий в себе id песни
+	 * @return Путь к файлу в случае наличия офлайн, null в случае отсутствия
+	 */
+	public static String OfflineAccess(String aid) { // Проверка доступности песни офлайн
+		String link = "";
+		try {
+			InputStream in = new FileInputStream(System.getProperty("user.home")+"/VK Music Manager/songs.xls");
+			HSSFWorkbook wb = new HSSFWorkbook(in);
+
+			Sheet sheet = wb.getSheetAt(0);
+
+			for (Row row : sheet) 
+				if (aid.equals(row.getCell(0).getStringCellValue())) {
+					link = row.getCell(3).getStringCellValue();
+					break;
+				}
+
+			in.close();
+			wb.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+			JOptionPane.showMessageDialog(null,
+					"Ошибка доступа к файлам программы. Перезапустите приложение.",
+					"Ошибка",
+					JOptionPane.WARNING_MESSAGE);
+		}
+		return link;
+	}
+
+	public static ArrayList<String> getAudioByName(String owner) {
+		ArrayList<String> songPaths = new ArrayList<String>();
+
+		try {
+			InputStream in = new FileInputStream(System.getProperty("user.home")+"/VK Music Manager/songs.xls");
+			HSSFWorkbook wb = new HSSFWorkbook(in);
+
+			Sheet sheet = wb.getSheetAt(0);
+
+			for (Row row : sheet) {
+				if (row.getCell(1).getStringCellValue().equals(owner) && row.getCell(2).getStringCellValue().equals("")) {
+					songPaths.add(row.getCell(3).getStringCellValue());
+				}
+			}
+			in.close();
+			wb.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+			JOptionPane.showMessageDialog(null,
+					"Ошибка доступа к файлам программы. Перезапустите приложение.",
+					"Ошибка",
+					JOptionPane.WARNING_MESSAGE);
+		}
+
+		return songPaths;
+	}
+
+	public static ArrayList<String> getFriendByName(String owner) {
+		ArrayList<String> friends = new ArrayList<String>();
+
+		try {
+			InputStream in = new FileInputStream(System.getProperty("user.home")+"/VK Music Manager/songs.xls");
+			HSSFWorkbook wb = new HSSFWorkbook(in);
+
+			Sheet sheet = wb.getSheetAt(0);
+
+			for (Row row : sheet) {
+				if (row.getCell(1).getStringCellValue().equals(owner) && (!row.getCell(2).getStringCellValue().equals("")) && !friends.contains(row.getCell(2).getStringCellValue())) {
+					friends.add(row.getCell(2).getStringCellValue());
+				}
+			}
+			
+			in.close();
+			wb.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		return friends;
+	}
+
+	public static String[] folders(File directory) {
+		FilenameFilter directoryFilter = new FilenameFilter() {
+			public boolean accept(File file, String name) {
+				File d = new File(file.getAbsolutePath() + "/" + name);
+				return d.isDirectory();
+			}
+		};
+
+		if (directory.exists()) return directory.list(directoryFilter);
+		else return null;
+	}
+}
+package beta;
+
+import java.awt.Color;
+import java.awt.Component;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.json.simple.JSONObject;
+
+import javax.swing.DefaultListCellRenderer;
+import javax.swing.JList;
+
+/**
+ * <p>Расширение базового класса DefaultListCellRenderer</p>
+ * @author Иван
+ */
+class AudiolistRenderer extends DefaultListCellRenderer {
+	private static final long serialVersionUID = 1L;
+	final String username;
+
+	public AudiolistRenderer(String username) {
+		this.username = username;
+	}
+	
+	/** 
+	 * <p>Переопределение метода getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus);</p>
+	 * @author Иван
+	 * @value c Переменная, хранящая в себе компонент JList, т.е. элемент списка.
+	 * <br> index Переменная, хранящая индекс элемента списка в списке, полученным с VK
+	 * <br> mp3 Переменная хранящая в себе JSON обьект, полученного с VK
+	 */
+	@SuppressWarnings({ "rawtypes", "resource" })
+	@Override
+	public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+		Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+		if (!isSelected) {
+			if (index%2 != 0) c.setBackground(new Color(226, 230, 233));
+			else c.setBackground(new Color(236, 240, 243));
+		}
+		index = VK_API_Methods.audiolist.indexOf(value);
+
+//		JSONObject mp3 = (JSONObject) VK_API_Methods.JSONaudio.get(index);
+		String aid = "0";
+
+		try {
+			InputStream in = new FileInputStream(System.getProperty("user.home")+"/VK Music Manager/songs.xls");
+			HSSFWorkbook wb = new HSSFWorkbook(in);
+			Sheet sheet = wb.getSheetAt(0);
+
+			for (Row row : sheet) {
+				if (aid.equals(row.getCell(0).getStringCellValue()) && username.equals(row.getCell(1).getStringCellValue())) {
+					c.setForeground(new Color(134,25,12));
+					break;
+				}
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		return c;
+	}
+}
+
+package beta;
+
+import com.gargoylesoftware.htmlunit.WebRequest;
+import org.json.simple.parser.ParseException;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.htmlunit.HtmlUnitDriver;
+import org.openqa.selenium.remote.DesiredCapabilities;
+
+import java.io.IOException;
+import java.util.List;
+
+import static beta.VK_API_Methods.*;
+
+/**
+ * <p>Класс авторизации с полями login и password</p>
+ * @author Иван
+ * С помощью библиотеки Selenium имитируется браузер и производится авторизация
+ */
+class Authorization { // Класс авторизации
+	private final String login;
+	private final String password;
+	public static String UID;
+	public static String ACCESS_TOKEN;
+	public static HtmlUnitDriver driver;
+	
+	/**
+	 * <p> Конструктор класса </p>
+	 * @param login
+	 * @param password
+	 */
+	public Authorization(String login, String password) {
+		this.login = login;
+		this.password = password;
+	}
+	
+	/**
+	 * <p>Производит авторизацию с помощью login и password</p>
+	 * @return "no_internet" В случае отсутствия интернет-соединения
+	 * <br> "incorrect_data" В случае неправильного логина или пароля
+	 * <br> "captcha" В случае присутствия на веб-странице captch'и
+	 * <br> "success" В случае успешной авторизаци
+	 */
+	String Authorize() throws InterruptedException, IOException, ParseException {
+
+        DesiredCapabilities capabilities = DesiredCapabilities.chrome();
+        capabilities.setJavascriptEnabled(true);
+
+		driver = new HtmlUnitDriver(capabilities);
+
+		try {
+			driver.get("https://oauth.vk.com/authorize?client_id=5922335&redirect_uri=http://api.vk.com/blank.html&scope=audio&display=wap&response_type=token");
+		}
+		catch (Exception e) {
+			return "no_internet";
+		}
+
+		if (driver.getPageSource().contains("Unknown host")) {
+			return "no_internet";
+		}
+
+		WebElement login = driver.findElement(By.name("email"));
+		WebElement password = driver.findElement(By.name("pass"));
+		login.sendKeys(this.login);
+		password.sendKeys(this.password);
+		password.submit();
+
+		if (driver.getPageSource().contains("service_msg service_msg_warning")) {
+			return "incorrect_data";
+		}
+		if (driver.getPageSource().contains("captcha")) {
+			return "captcha";
+		}
+
+		if (!driver.getCurrentUrl().contains("access_token")) {
+			WebElement allow = driver.findElement(By.className("button"));
+			allow.click();
+		}
+
+		ACCESS_TOKEN = driver.getCurrentUrl().split("access_token=")[1].split("&")[0];
+		UID = driver.getCurrentUrl().split("user_id=")[1];
+
+		driver.get("https://m.vk.com/404");
+
+		return "success";
+	}
+}
+
+package beta;
+
+import java.awt.EventQueue;
+import javax.imageio.ImageIO;
+import javax.swing.BorderFactory;
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
+import javax.swing.JTextField;
+import javax.swing.JButton;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+
+import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+
+import javax.swing.JLabel;
+
+import java.awt.Color;
+
+import javax.swing.ImageIcon;
+
+import java.awt.Font;
+
+import javax.swing.JPasswordField;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Enumeration;
+
+import javax.swing.JCheckBox;
+import javax.swing.border.Border;
+import javax.swing.border.CompoundBorder;
+import javax.swing.border.EmptyBorder;
+
+import org.apache.commons.io.FileUtils;
+import org.pushingpixels.substance.api.skin.SubstanceMarinerLookAndFeel;
+
+/**
+ * <p>Класс графического интерфейса основного окна</p>
+ * Используется Substance Mariner Java Look & Feel
+ * @value rememberPasswordFlag Переменная, хранящая в себе параметр, означающий нажал ли пользователь "Сохранить пароль"
+ */
+class AuthorizationWindow  { // Окно авторизации
+	JFrame frame;
+	private JTextField loginField;
+	private JPasswordField passwordField;
+	private JCheckBox showPassword;
+	private JCheckBox rememberPassword;
+	private JLabel image;
+	private JLabel welcome;
+	private JLabel instructions;
+	private JLabel warning;
+	private JLabel login;
+	private JLabel password;
+	private JButton loginButton;
+
+	private boolean rememberPasswordFlag = true;
+	private String username;
+
+	public static void main(String[] args) {
+		EventQueue.invokeLater(new Runnable() {
+			public void run() {
+				try {
+					UIManager.setLookAndFeel(new SubstanceMarinerLookAndFeel());
+					setUIFont(new Font("Segoe UI", Font.PLAIN, 12));
+					AuthorizationWindow window = new AuthorizationWindow();
+					window.frame.setVisible(true);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		});
+	}
+
+	private static void setUIFont(Font font) {
+		Enumeration<Object> keys = UIManager.getDefaults().keys();
+		while (keys.hasMoreElements()) {
+			Object key = keys.nextElement();
+			Object value = UIManager.get (key);
+			if (value != null && value instanceof javax.swing.plaf.FontUIResource)
+				UIManager.put (key, font);
+		}
+	}
+
+	/**
+	 * <p>Конструктор</p>
+	 * Инициализируются компоненты, "слушатели" компонентов и производятся доп. операции
+	 */
+	public AuthorizationWindow() throws IOException {
+		initialize();
+		listeners();
+		operations();
+		//tray();
+		username = "";
+	}
+
+	/*private void tray() throws IOException {
+		if (!SystemTray.isSupported()) {
+            return;
+        }
+		Image img = ImageIO.read(getClass().getResource("/images/logo16.png"));
+        final PopupMenu popup = new PopupMenu();
+        final TrayIcon trayIcon =
+                new TrayIcon(img);
+        final SystemTray tray = SystemTray.getSystemTray();
+       
+        MenuItem exitItem = new MenuItem("Выход");
+        
+        exitItem.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent event) {
+				System.exit(0);
+			};
+        });
+        popup.add(exitItem);
+       
+        trayIcon.setPopupMenu(popup);
+       
+        try {
+            tray.add(trayIcon);
+        } catch (AWTException e) {
+            System.out.println("TrayIcon could not be added.");
+        }
+	}*/
+
+	private void initialize() throws IOException {
+		Border line = BorderFactory.createLineBorder(Color.DARK_GRAY);
+		Border empty = new EmptyBorder(0, 3, 0, 0);
+		CompoundBorder textFieldBorder = new CompoundBorder(line, empty);
+
+		frame = new JFrame("VK Music Manager Beta");
+		frame.setIconImage(ImageIO.read(getClass().getResource("/images/logo32.png")));
+		frame.setResizable(false);
+		frame.setBounds(600, 200, 312, 395);
+		frame.setLocationRelativeTo(null);
+		frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+		frame.getContentPane().setLayout(null);
+
+		image = new JLabel();
+		image.setIcon(new ImageIcon(ImageIO.read(getClass().getResource("/images/logo.png"))));
+		image.setBounds(84, 12, 146, 133);
+		frame.getContentPane().add(image);
+
+		welcome = new JLabel("Добро пожаловать!", SwingConstants.CENTER);
+		welcome.setFont(new Font("Tahoma", Font.BOLD, 13));
+		welcome.setBounds(10, 150, 286, 20);
+		frame.getContentPane().add(welcome);
+
+		instructions = new JLabel("Войдите под своей учетной записью ВКонтакте", SwingConstants.CENTER);
+		instructions.setFont(new Font("Tahoma", Font.PLAIN, 12));
+		instructions.setBounds(10, 174, 286, 20);
+		frame.getContentPane().add(instructions);
+
+		warning = new JLabel("(требуется подключение к интернету)", SwingConstants.CENTER);
+		warning.setFont(new Font("Tahoma", Font.PLAIN, 11));
+		warning.setBounds(10, 199, 286, 14);
+		frame.getContentPane().add(warning);
+
+		login = new JLabel("Логин");
+		login.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+		login.setBounds(28, 229, 50, 22);
+		frame.getContentPane().add(login);
+
+		password = new JLabel("Пароль");
+		password.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+		password.setBounds(28, 257, 50, 22);
+		frame.getContentPane().add(password);
+
+		loginField = new JTextField();
+		loginField.setFont(new Font("Tahoma", Font.PLAIN, 12));
+		loginField.setBounds(84, 229, 158, 20);
+		frame.getContentPane().add(loginField);
+
+		passwordField = new JPasswordField();
+		passwordField.setFont(new Font("Tahoma", Font.PLAIN, 12));
+		passwordField.setBounds(84, 257, 158, 20);
+		passwordField.setEchoChar('●');
+		frame.getContentPane().add(passwordField);
+
+		passwordField.setBorder(textFieldBorder);
+		loginField.setBorder(textFieldBorder);
+
+		showPassword = new JCheckBox("Показать пароль");
+		showPassword.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+		showPassword.setOpaque(false);
+		showPassword.setFocusPainted(false);
+		showPassword.setBounds(84, 282, 158, 23);
+		frame.getContentPane().add(showPassword);
+
+		rememberPassword = new JCheckBox("Запомнить пароль");
+		rememberPassword.setOpaque(false);
+		rememberPassword.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+		rememberPassword.setFocusPainted(false);
+		rememberPassword.setBounds(84, 302, 158, 23);
+		frame.getContentPane().add(rememberPassword);
+
+		loginButton = new JButton("Войти");
+		loginButton.setBounds(106, 332, 94, 22);	
+		loginButton.setFocusPainted(false);
+		loginButton.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+		frame.getContentPane().add(loginButton);
+	}
+
+	private void listeners() {
+		/**
+		 * <p>Слушатель для loginField, passwordField, loginButton, осуществляющий авторизацию по нажатию "Enter"</p>
+		 */
+		KeyListener k = new KeyAdapter() {
+			public void keyPressed(KeyEvent e) {                
+				if(e.getKeyCode() == KeyEvent.VK_ENTER){
+					Thread thread = new Thread() {
+						public void run() {
+							try {
+								Authorize();
+							}
+							catch (Exception e) {
+								loginButton.setEnabled(true);
+							}
+							this.interrupt();
+						}
+					};
+					loginButton.setEnabled(false);
+					thread.start();
+				}
+			}        
+		};
+
+		/**
+		 * <p>Слушатель для frame, который в случае закрытия окна вызывает окно подтверждения</p>
+		 */
+		frame.addWindowListener(new WindowAdapter() {
+			public void windowClosing(WindowEvent event) {
+				Object[] options = { "Да", "Нет" };
+				int n = JOptionPane
+						.showOptionDialog(event.getWindow(), "Вы действительно хотите выйти?",
+								"Подтверждение", JOptionPane.YES_NO_OPTION,
+								JOptionPane.QUESTION_MESSAGE, null, options,
+								options[0]);
+				if (n == JOptionPane.YES_OPTION) System.exit(0);
+			}
+		});
+
+		/**
+		 * <p>Слушатель для showPassword, который либо показывает пароль, либо скрывает, в зависимости от того, что выбрал пользователь</p>
+		 */
+		showPassword.addItemListener(new ItemListener() {
+			@Override
+			public void itemStateChanged(ItemEvent e) {
+				loginButton.requestFocus();
+				if (e.getStateChange() == ItemEvent.SELECTED) passwordField.setEchoChar((char) 0);
+				else passwordField.setEchoChar('●');
+			}
+
+		}); 
+
+
+
+		/**
+		 * <p>Слушатель для loginButton, который производит авторизацию, если была нажата эта кнопка</p>
+		 */
+		loginButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0)  {
+				Thread thread = new Thread() {
+					public void run() {
+						try {
+							Authorize();
+						}
+						catch (Exception e) {
+							loginButton.setEnabled(true);
+						}
+						this.interrupt();
+					}
+				};
+				loginButton.setEnabled(false);
+				thread.start();
+			}
+		});
+
+		passwordField.addKeyListener(k);
+		loginField.addKeyListener(k);
+		loginButton.addKeyListener(k);
+	}
+
+	/**
+	 * <p>Создание директории программы при ее отсутствии</p>
+	 * <p>Автоматическая вставка авторизационных данных при их наличии</p>
+	 */
+	private void operations() {
+		File log = new File(System.getProperty("user.home")+"/VK Music Manager/log.txt");
+		if (log.exists()) {
+			try {
+				String s = FileUtils.readFileToString(log, System.getProperty("file.encoding"));
+
+				loginField.setText(s.split("\n")[0]);
+				passwordField.setText(s.split("\n")[1]);
+
+				rememberPassword.setSelected(true);
+			} catch (IOException e) {
+				log.delete();
+			}	
+		}
+	}
+
+	/**
+	 * <p>Запуск авторизации пользователя</p>
+	 * Если пользователь нажал "Запомнить пароль", то авторизационные данные запишутся в файл
+	 * <br> Если пользователь убрал "Запомнить пароль", то авторизационные данные, при их наличии удаляться
+	 * 
+	 * @value process Визуализация процесса авторизации 
+	 * <br> session Обьект класса Authorization
+	 * @return MainWindow.main(null); в случае успешной авторизации
+	 * <br> OfflineWindow.main(null); в случае отсутствия интернет-соединения
+	 * @throws Exception 
+	 */
+	private void Authorize() throws Exception {
+		Thread process = new Thread() {
+			public void run() {
+				int count = 0;
+				while (!loginButton.isEnabled()) {
+					if (count == 0) {
+						warning.setText("");
+						count++;
+					}
+					else if (count == 1) {
+						warning.setText("●");
+						count++;
+					}
+					else if (count == 2) {
+						warning.setText("● ●");
+						count++;
+					}
+					else if (count == 3) {
+						warning.setText("● ● ●");
+						count = 0;
+					}
+					try {
+						Thread.sleep(550);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+				this.interrupt();
+			}
+		};
+		process.start();
+
+		Authorization session = new Authorization(loginField.getText(), String.valueOf(passwordField.getPassword()));
+		String status = session.Authorize();
+		if (status.equals("no_internet")) {
+			final File directory = new File(System.getProperty("user.home")+"/VK Music Manager/");
+			directory.mkdirs();
+
+			SwingUtilities.invokeLater(new Runnable() {
+				public void run() {
+					if (directory.list().length > 0) {
+						String[] profiles = AppFilesWorkMethods.folders(directory);
+						username = (String) JOptionPane.showInputDialog(frame, "Интернет-соединение отсутствует. Выберите профиль", "Выбор профиля", JOptionPane.QUESTION_MESSAGE,
+								null, profiles, profiles[0]);
+						if (username != null) {
+							frame.dispose();
+							try {
+								MainWindow.main(false, username);
+							} catch (Exception ex) {
+								ex.printStackTrace();
+							}
+						}
+						else {
+							loginButton.setEnabled(true);
+							warning.setText("(требуется подключение к интернету");
+							frame.revalidate();
+						}
+					}
+					else {
+						username = "";
+						frame.dispose();
+						try {
+							MainWindow.main(false, username); // Офлайн
+						} catch (Exception e1) {
+							e1.printStackTrace();
+						}
+					}
+				}
+			});
+		}
+		else if (status.equals("incorrect_data")) {
+			loginField.setBorder(BorderFactory.createLineBorder(Color.RED, 1));
+			passwordField.setBorder(BorderFactory.createLineBorder(Color.RED, 1));
+			warning.setText("Не удалось, попробуйте еще раз.");
+			loginButton.setEnabled(true);
+		}
+		else {
+            if (status.equals("captcha")) {
+                warning.setText("Слишком много попыток, попробуйте чуть позже.");
+                loginButton.setEnabled(true);
+            } else {
+                if (status.equals("success")) {
+                    String authorizedUsername = VK_API_Methods.getNameById(Authorization.UID, "nom");
+                    File directory = new File(System.getProperty("user.home") + "/VK Music Manager/" + authorizedUsername + "/");
+                    directory.mkdirs();
+
+                    if (rememberPassword.isSelected()){
+                        File log = new File(System.getProperty("user.home") + "/VK Music Manager/log.txt");
+                        if (!log.exists()) {
+                            log.createNewFile();
+                        }
+                        try {
+                            FileWriter fw = new FileWriter(log, false);
+                            fw.append(loginField.getText());
+                            fw.append("\n");
+                            fw.append(String.valueOf(passwordField.getPassword()));
+                            fw.flush();
+                            fw.close();
+                        } catch (FileNotFoundException e) {
+                            e.printStackTrace();
+                        }
+
+                    }
+                    else{
+                        File log = new File(System.getProperty("user.home") + "/VK Music Manager/log.txt");
+                        if (log.exists()) {
+                            log.delete();
+                        }
+                    }
+
+                    frame.dispose();
+                    try {
+                        VK_API_Methods.trackVisitor();
+                        MainWindow.main(true, authorizedUsername);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+	}
+}
+
+package beta;
+
+import javax.swing.*;
+
+import static beta.MainWindow.friendAudioTask;
+import static beta.MainWindow.isThatFriendSongs;
+import static beta.MainWindow.myAudioTask;
+import static beta.VK_API_Methods.*;
+
+/**
+ * Created by Ekaterina Advolotkina on 17.04.2017.
+ */
+
+
+public class displayingSongsTask extends SwingWorker<Integer, Integer> {
+    private final MainWindow window;
+    String uid;
+
+
+    public displayingSongsTask(MainWindow window, String uid) {
+        this.window = window;
+        this.uid = uid;
+    }
+    boolean paused = false;
+
+//    public void pause() throws InterruptedException {
+//      //  paused = true;
+//        System.out.println("paused");
+//        this.wait();
+//    }
+//
+//    public  void resume() {
+//        //paused = false;
+//        this.notify();
+//        System.out.println("notified");
+//    }
+    @Override
+    protected Integer doInBackground() throws Exception {
+       // window.frame.revalidate();
+     //   MainWindow.audiolist.clear();
+//        if( paused ) {
+//            System.out.println("Background paused, waiting for resume");
+//            try {
+//                synchronized(this){
+//                    wait(1000);
+//                }
+//            } catch (InterruptedException ex) {
+//                System.out.println("Background interrupted");
+//            }
+//        } else {
+//            System.out.println("Background running");
+
+                //System.out.println(VK_API_Methods.friendaudiolist.size());
+                // System.out.println(friendaudiolist.size());
+        do {
+            final Runnable checkVariableChange = new Runnable() {
+                public void run() {
+                    MainWindow.audiolist.clear();
+                    variablesSaver.setIsInterrupted(false);
+                }
+            };
+
+            int i = 0;
+            int currSize = 0;
+            i = variablesSaver.getI();
+            currSize = variablesSaver.getCurrentSize();
+            if (variablesSaver.isInterrupted) {
+//                MainWindow.audiolist.clear();
+//                variablesSaver.setIsInterrupted(false);
+                try {
+                    SwingUtilities.invokeAndWait(checkVariableChange);
+                }
+                catch (Exception e) {
+                    e.printStackTrace();
+                }
+                break;
+            }
+
+            //           System.out.println(friendaudiolist.size());
+            while (i < currSize && MainWindow.audiolist.getModel().getSize() < currSize) {
+//                    if(variablesSaver.isInterrupted){
+//                        variablesSaver.setIsInterrupted(false);
+//                        break;
+//                    }
+                // System.out.println(friendaudiolist);
+
+                if (variablesSaver.isInterrupted) {
+//                MainWindow.audiolist.clear();
+//                variablesSaver.setIsInterrupted(false);
+                    try {
+                        SwingUtilities.invokeAndWait(checkVariableChange);
+                    }
+                    catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    break;
+                }
+                final Runnable pennyStockPicker = new Runnable() {
+                    public void run() {
+                        MainWindow.audiolist.addElement(variablesSaver.getCurrSong());
+                        variablesSaver.setI(variablesSaver.getI()+1);
+                    }
+                };
+                try {
+                    SwingUtilities.invokeAndWait(pennyStockPicker);
+                }
+                catch (Exception e) {
+                    e.printStackTrace();
+                }
+//                MainWindow.audiolist.addElement(variablesSaver.getCurrSong());
+//                variablesSaver.setI(variablesSaver.getI() + 1);
+//                if (variablesSaver.isInterrupted) {
+//                    MainWindow.audiolist.clear();
+//                    variablesSaver.setIsInterrupted(false);
+//                    break;
+//                }
+
+                // MainWindow.VKaudioCount.setText("Песен: " + audiolist.size());
+            }
+        }while(!isCancelled());
+
+            // do a chunk of actual work
+//        }
+//        do {
+//           //System.out.println(VK_API_Methods.friendaudiolist.size());
+//           // System.out.println(friendaudiolist.size());
+//            int i = variablesSaver.getI();
+//            int currSize = variablesSaver.getCurrentSize();
+//            System.out.println(friendaudiolist.size());
+//            while (i < currSize && MainWindow.audiolist.getModel().getSize()<currSize  ) {
+//                if(variablesSaver.isInterrupted){
+//                    variablesSaver.setIsInterrupted(false);
+//                    break;
+//                }
+//               // System.out.println(friendaudiolist);
+//                MainWindow.audiolist.addElement(variablesSaver.getCurrSong());
+//                variablesSaver.setI(variablesSaver.getI() + 1);
+//               // MainWindow.VKaudioCount.setText("Песен: " + audiolist.size());
+//            }
+//        }while(!isCancelled());
+//        window.frame.revalidate();
+//        if(uid == Authorization.UID) {
+//            int currentSize = 0;
+//            System.out.println("vghjbbkjGGGGGGGG");
+//            MainWindow.audiolist.clear();
+//            //int currentSize2 = 0;
+//            int i = 0;
+//            do {
+//                //Thread.sleep(500);
+//                currentSize = audiolist.size();
+//                while( variablesSaver.getI()  < variablesSaver.getCurrentSize()) {
+//                    MainWindow.audiolist.addElement(variablesSaver.getCurrSong());
+//                    variablesSaver.setI(variablesSaver.getI()+1);
+//                }
+//                MainWindow.VKaudioCount.setText("Песен: " + audiolist.size());
+//                System.out.println(MainWindow.audiolist.getModel().getSize());
+//                //currentSize2 = audiolist.size();
+//            } while (!myAudioTask.isDone()||MainWindow.audiolist.getModel().getSize()<currentSize);
+//        } else {
+//            int currentSize = 0;
+//            MainWindow.audiolist.clear();
+//            //int currentSize2 = 0;
+//            int i =0;
+//            do {
+//
+//                currentSize = friendaudiolist.size();
+//                while ( i < currentSize) {
+//                    System.out.println(friendaudiolist.size());
+//                    MainWindow.audiolist.addElement(friendaudiolist.get(i));
+//                    i++;
+//                }
+//                MainWindow.VKaudioCount.setText("Песен: " + friendaudiolist.size());
+//                System.out.println(JSONfriendaudio.size() + " " + MainWindow.audiolist.getModel().getSize());
+//               // System.out.println(MainWindow.audiolist.getModel().getSize());
+//                //currentSize2 = friendaudiolist.size();
+//            } while (!friendAudioTask.isDone()||MainWindow.audiolist.getModel().getSize()<currentSize);
+//        }
+
+        return null;
+    }
+}
+
+package beta;
+
+import java.io.File;
+
+/** 
+ * <p> Класс загружаемого обьекта </p>
+ * @author Иван
+ * @value USER_PATH Переменная, содержащая в себе адрес папки пользователя, который скачивает песню
+ * <br> artist Переменная, содержащая в себе имя исполнителя
+ * <br> title Переменная, содержащая в себе название песни
+ * <br> url Переменная, содержащая в себе ссылку на скачивание песни
+ * <br> owner_id Переменная, содержащая в себе id владельца песни
+ * <br> aid Переменная, содержащая в себе id песни
+ */
+class DownloadableAudio {
+	final File USER_PATH;
+	final String artist;
+	final String title;
+	final String url;
+	final String downloader;
+	final String friend;
+	final String aid;
+	
+	public DownloadableAudio(File USER_PATH, String artist, String title, String url, String downloader, String friend, String aid) {
+		this.USER_PATH = USER_PATH;
+		this.artist = artist;
+		this.title = title;
+		this.url = url;
+		this.downloader = downloader;
+		this.friend = friend;
+		this.aid = aid;
+	}
+}
+
+package beta;
+
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+
+import javax.swing.JOptionPane;
+
+import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+
+/**
+ * <p>Методы, работающие с загрузкой файла.</p>
+ * @author Иван
+ * @methods Запись информации о файле
+ * <br> Корректировка названия
+ */
+class DownloadMethods {
+
+	/**
+	 * <p> Записывает информацию о скачанной песне в файл aids.txt
+	 * 
+	 * @param aid Параметр, хранящий id песни
+	 * @throws IOException 
+	 */
+	public static void SongWriter(String aid, String downloader, String friend, String path)  { // Запись информации о закаченной песне в файл songs.xls
+		try {
+			InputStream in = new FileInputStream(System.getProperty("user.home")+"/VK Music Manager/songs.xls");
+			HSSFWorkbook wb = new HSSFWorkbook(in);
+
+			Sheet sheet = wb.getSheetAt(0);
+			Row row = sheet.createRow(sheet.getLastRowNum()+1);
+
+			row.createCell(0).setCellValue(aid);
+			row.createCell(1).setCellValue(downloader);
+			row.createCell(2).setCellValue(friend.split("/")[0]);
+			row.createCell(3).setCellValue(path);
+
+			FileOutputStream fout = new FileOutputStream(System.getProperty("user.home")+"/VK Music Manager/songs.xls");
+			wb.write(fout);
+			in.close();
+			wb.close();
+			fout.close();	
+		} catch (IOException e) {
+			e.printStackTrace();
+			JOptionPane.showMessageDialog(null,
+					"Ошибка доступа к файлам программы. Перезапустите приложение.",
+					"Ошибка",
+					JOptionPane.WARNING_MESSAGE);
+		}
+	}
+
+	/**
+	 * <p> Корректирует название загружаемого файла (удаляет спец. символы)
+	 * 
+	 * @param Путь сохраняемого файла
+	 * @return Путь сохраняемого файла после корректировки
+	 */
+	public static String fixWndowsFileName(String pathname) { // Корректировка названия сохраняемого файла
+		String[] forbiddenSymbols = new String[] {"<", ">", ":", "\"", "/", "\\", "|", "?", "*"};
+		String result = pathname;
+		for (String forbiddenSymbol: forbiddenSymbols) {
+			result = StringUtils.replace(result, forbiddenSymbol, "");
+		}
+		return StringEscapeUtils.unescapeXml(result); 
+	}
+}
+
+package beta;
+import javax.swing.*;
+import javax.swing.text.*;
+import javax.swing.border.EmptyBorder;
+import javax.swing.event.*;
+
+import java.util.*;
+
+/**
+ * <p> Простой JList, который поддерживает фильтрацию
+ * @author Nathan Stevens
+ */
+@SuppressWarnings("serial")
+class FilteringJList extends JList<Object> { // Пользвательская JList модель
+	private JTextField input;
+	
+	private FilteringModel model;
+
+	public FilteringJList() {
+		super.setBorder(new EmptyBorder(5,5, 5, 5));
+		model = new FilteringModel();
+		setModel(model);
+	}
+
+	public void clear() {
+		//model.list.clear();
+		
+		model = new FilteringModel();
+		setModel(model);
+		installJTextField(getInput());
+	}
+
+	
+	public void installJTextField(JTextField input) {
+		if (input != null) {
+			this.setInput(input);
+			FilteringModel model = (FilteringModel) getModel();
+			input.getDocument().addDocumentListener(model);
+		}
+	}
+
+	public void uninstallJTextField(JTextField input) {
+		if (input != null) {
+			FilteringModel model = (FilteringModel) getModel();
+			input.getDocument().removeDocumentListener(model);
+			this.setInput(null);
+		}
+	}
+
+	public void setModel(ListModel<Object> model) {
+		if (!(model instanceof FilteringModel)) {
+			throw new IllegalArgumentException();
+		} else {
+            super.setModel(model);
+        }
+	}
+
+	public void addElements(ArrayList<String> arr) {
+        for (String anArr : arr) ((FilteringModel) getModel()).addElement(anArr);
+	}
+	
+	public void addElements(String[] arr) {
+        for (String anArr : arr) ((FilteringModel) getModel()).addElement(anArr);
+	}
+
+	public void addElement(String element){
+		((FilteringModel) getModel()).addElement(element);
+	}
+
+	JTextField getInput() {
+		return input;
+	}
+
+	void setInput(JTextField input) {
+		this.input = input;
+	}
+
+	private class FilteringModel extends AbstractListModel<Object> implements
+	DocumentListener {
+		final List<Object> list;
+		final List<Object> filteredList;
+		String lastFilter = "";
+
+		public FilteringModel() {
+			list = new ArrayList<Object>();
+			filteredList = new ArrayList<Object>();
+		}
+
+		public void addElement(Object element) {
+			list.add(element);
+			filter(lastFilter);
+		}
+
+		public int getSize() {
+			return filteredList.size();
+		}
+
+		public Object getElementAt(int index) {
+			Object returnValue;
+			if (index < filteredList.size()) {
+				returnValue = filteredList.get(index);
+			} else {
+				returnValue = null;
+			}
+			return returnValue;
+		}
+
+		void filter(String search) {
+			filteredList.clear();
+			for (Object element : list) {
+				if (element.toString().toLowerCase().indexOf(search.toLowerCase(), 0) != -1) {
+					filteredList.add(element);
+				}
+			}
+			fireContentsChanged(this, 0, getSize());
+		}
+
+		public void insertUpdate(DocumentEvent event) {
+			Document doc = event.getDocument();
+			try {
+				lastFilter = doc.getText(0, doc.getLength());
+				filter(lastFilter);
+			} catch (BadLocationException ble) {
+				System.err.println("Bad location: " + ble);
+			}
+		}
+
+		public void removeUpdate(DocumentEvent event) {
+			Document doc = event.getDocument();
+			try {
+				lastFilter = doc.getText(0, doc.getLength());
+				filter(lastFilter);
+			} catch (BadLocationException ble) {
+				System.err.println("Bad location: " + ble);
+			}
+		}
+
+		public void changedUpdate(DocumentEvent event) {}
+	}
+}
+
+package beta;
+
+import java.awt.Color;
+import java.awt.Component;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+
+import javax.swing.DefaultListCellRenderer;
+import javax.swing.JList;
+
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+
+/**
+ * <p>Расширение базового класса DefaultListCellRenderer
+ * @author Иван
+ */
+class FriendlistRenderer extends DefaultListCellRenderer { // Пользовательский JList Cells рендерер
+	private static final long serialVersionUID = 1L;
+	private final String username;
+
+	public FriendlistRenderer(String username) {
+		this.username = username;
+	}
+
+	/**
+	 * <p> Переопределение метода getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus)
+	 * @value file Переменная, хранящая в себе путь к папке, которая проверяется на наличие содержимого
+	 */
+	@SuppressWarnings({ "rawtypes", "resource" })
+	@Override
+	public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+		Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+
+		if (!isSelected)
+			if (index%2 != 0) c.setBackground(new Color(226, 230, 233));
+			else c.setBackground(new Color(236, 240, 243));
+		
+		try {
+			InputStream in = new FileInputStream(System.getProperty("user.home")+"/VK Music Manager/songs.xls");
+			HSSFWorkbook wb = new HSSFWorkbook(in);
+			
+			Sheet sheet = wb.getSheetAt(0);
+
+			for (Row row : sheet) 
+				if ((row.getCell(1).getStringCellValue() + row.getCell(2).getStringCellValue()).equals(username+value.toString())) {
+					c.setForeground(new Color(134,25,12));
+					break;
+				}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		return c;
+	}
+}
+
+package beta;
+
+import org.json.simple.JSONObject;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.openqa.selenium.JavascriptExecutor;
+
+import javax.swing.*;
+import java.util.List;
+
+import static beta.Authorization.driver;
+import static beta.VK_API_Methods.JSONaudio;
+import static beta.VK_API_Methods.JSONfriendaudio;
+import static beta.VK_API_Methods.friendaudiolist;
+import static beta.gettingSongsTask.getUnmaskedUrl;
+
+/**
+ * Created by Ekaterina Advolotkina on 17.04.2017.
+ */
+public class gettingFriendSongsTask extends SwingWorker<Integer,Integer> {
+
+    private final MainWindow window;
+    String uid;
+
+    public gettingFriendSongsTask(MainWindow window, String uid) {
+        this.window = window;
+        this.uid = uid;
+    }
+    @Override
+    protected Integer doInBackground() throws Exception {
+//        //window.frame.revalidate();
+//        VK_API_Methods.friendaudiolist.clear();
+//        VK_API_Methods.JSONfriendaudio.clear();
+        do {
+            int isThereAnySongsLeft = 0;
+            do {
+                final Runnable checkVariableChange = new Runnable() {
+                    public void run() {
+                        VK_API_Methods.friendaudiolist.clear();
+                        VK_API_Methods.JSONfriendaudio.clear();
+                        MainWindow.audiolist.clear();
+                        //variablesSaver.setIsInterrupted(false);
+                    }
+                };
+                // System.out.println(offset);
+                if (variablesSaver.isInterrupted) {
+//                MainWindow.audiolist.clear();
+//                variablesSaver.setIsInterrupted(false);
+                    try {
+                        SwingUtilities.invokeAndWait(checkVariableChange);
+                    }
+                    catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    break;
+                }
+//                if(variablesSaver.isInterrupted){
+//                    VK_API_Methods.friendaudiolist.clear();
+//                    VK_API_Methods.JSONfriendaudio.clear();
+//                    //variablesSaver.setIsInterrupted(false);
+//                    break;
+//                }
+
+                String script2 = "var callback = arguments[0];\n" +
+                        "\tvar async = true;\n" +
+                        "\tvar xhttp = new XMLHttpRequest();\n" +
+                        "  xhttp.onreadystatechange = function() {\n" +
+                        "    if (xhttp.readyState == 4 && xhttp.status == 200) {\n" +
+                        "    callback(xhttp.responseText);;\n" +
+                        "    }\n" +
+                        "  };\n" +
+                        "  xhttp.open(\"POST\", \"https://m.vk.com/audios" + variablesSaver.getUid() + "?offset=" + variablesSaver.getOffset() + "\");\n" +
+                        "  xhttp.setRequestHeader(\"content-type\", \"application/x-www-form-urlencoded\");\n" +
+                        "  xhttp.send();";
+
+                String string = (String) ((JavascriptExecutor) driver).executeAsyncScript(script2);
+                Document doc = Jsoup.parse(string);
+                List<Element> audio = doc.getElementsByClass("ai_label");
+                List<Element> audioUrl = doc.getElementsByAttribute("value");
+                for (int i = 1; i < audio.size(); i++) {
+                    VK_API_Methods.friendaudiolist.add(audio.get(i).text());
+                    JSONObject mp3 = new JSONObject();
+                    mp3.put("artist", audio.get(i).text().split("–")[0]);
+                    mp3.put("title", audio.get(i).text().split("–")[1]);
+                    mp3.put("url", audioUrl.get(i + 8).attr("value"));
+                    mp3.put("owner_id", Authorization.UID);
+                    mp3.put("aid", audio.get(i).text());
+
+                    JSONfriendaudio.add(mp3);
+                    if (variablesSaver.isInterrupted) {
+//                MainWindow.audiolist.clear();
+//                variablesSaver.setIsInterrupted(false);
+                        try {
+                            SwingUtilities.invokeAndWait(checkVariableChange);
+                        }
+                        catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        break;
+                    }
+//                    if(variablesSaver.isInterrupted){
+//                        VK_API_Methods.friendaudiolist.clear();
+//                        VK_API_Methods.JSONfriendaudio.clear();
+//                        //variablesSaver.setIsInterrupted(false);
+//                        break;
+//                    }
+                    //MainWindow.audiolist.addElement(audio.get(i).text());
+                }
+                isThereAnySongsLeft = audio.size();
+//            MainWindow.VKaudioCount.setText("Песен: " + friendaudiolist.size());
+                // offset = offset + 50;
+            } while (isThereAnySongsLeft > 1);
+        }while(!isCancelled());
+        System.out.println("shsshs");
+        return null;
+    }
+}
+
+package beta;
+
+import org.json.simple.JSONObject;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.openqa.selenium.JavascriptExecutor;
+
+import javax.swing.*;
+import java.util.List;
+
+import static beta.Authorization.driver;
+import static beta.VK_API_Methods.JSONaudio;
+
+/**
+ * Created by Ekaterina Advolotkina on 10.04.2017.
+ */
+public class gettingSongsTask extends SwingWorker<Integer, Integer> {
+
+    public static String getUnmaskedUrl(String url) {
+        JavascriptExecutor jse = (JavascriptExecutor) driver;
+        String script =
+                "var f = {\n" +
+                        "linkUnmasker: function(a) {\n" +
+                        "            function b(a) {\n" +
+                        "                if (~a.indexOf(\"audio_api_unavailable\")) {\n" +
+                        "                    var b = a.split(\"?extra=\")[1].split(\"#\")\n" +
+                        "                      , d = c(b[1]);\n" +
+                        "                    if (b = c(b[0]),\n" +
+                        "                    !d || !b)\n" +
+                        "                        return a;\n" +
+                        "                    d = d.split(String.fromCharCode(9));\n" +
+                        "                    for (var e, f, h = d.length; h--; ) {\n" +
+                        "                        if (f = d[h].split(String.fromCharCode(11)),\n" +
+                        "                        e = f.splice(0, 1, b)[0],\n" +
+                        "                        !g[e])\n" +
+                        "                            return a;\n" +
+                        "                        b = g[e].apply(null, f)\n" +
+                        "                    }\n" +
+                        "                    if (b && \"http\" === b.substr(0, 4))\n" +
+                        "                        return b\n" +
+                        "                }\n" +
+                        "                return console.log(a),\n" +
+                        "                a\n" +
+                        "            }\n" +
+                        "            function c(a) {\n" +
+                        "                if (!a || a.length % 4 == 1)\n" +
+                        "                    return !1;\n" +
+                        "                for (var b, c, d = 0, e = 0, g = \"\"; c = a.charAt(e++); )\n" +
+                        "                    c = f.indexOf(c),\n" +
+                        "                    ~c && (b = d % 4 ? 64 * b + c : c,\n" +
+                        "                    d++ % 4) && (g += String.fromCharCode(255 & b >> (-2 * d & 6)));\n" +
+                        "                return g\n" +
+                        "            }\n" +
+                        "            function d(a, b) {\n" +
+                        "                if (e(a) || \"undefined\" == typeof a.length) {\n" +
+                        "                    for (var c in a)\n" +
+                        "                        if (Object.prototype.hasOwnProperty.call(a, c) && b.call(a[c], c, a[c]) === !1)\n" +
+                        "                            break\n" +
+                        "                } else\n" +
+                        "                    for (var d = 0, f = a.length; f > d; d++) {\n" +
+                        "                        var g = a[d];\n" +
+                        "                        if (b.call(g, d, g) === !1)\n" +
+                        "                            break\n" +
+                        "                    }\n" +
+                        "                return a\n" +
+                        "            }\n" +
+                        "            function e(a) {\n" +
+                        "                return \"[object Object]\" === Object.prototype.toString.call(a)\n" +
+                        "            }\n" +
+                        "            var f = \"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMN0PQRSTUVWXYZO123456789+/=\"\n" +
+                        "              , g = {\n" +
+                        "                v: function(a) {\n" +
+                        "                    return a.split(\"\").reverse().join(\"\")\n" +
+                        "                },\n" +
+                        "                r: function(a, b) {\n" +
+                        "                    a = a.split(\"\");\n" +
+                        "                    for (var c, d = f + f, e = a.length; e--; )\n" +
+                        "                        c = d.indexOf(a[e]),\n" +
+                        "                        ~c && (a[e] = d.substr(c - b, 1));\n" +
+                        "                    return a.join(\"\")\n" +
+                        "                },\n" +
+                        "                x: function(a, b) {\n" +
+                        "                    var c = [];\n" +
+                        "                    return b = b.charCodeAt(0),\n" +
+                        "                    d(a.split(\"\"), function(a, d) {\n" +
+                        "                        c.push(String.fromCharCode(d.charCodeAt(0) ^ b))\n" +
+                        "                    }),\n" +
+                        "                    c.join(\"\")\n" +
+                        "                }\n" +
+                        "            };\n" +
+                        "            return b\n" +
+                        "        }()\n" +
+                        "}\n" +
+                        "\n" +
+                        "\t\tvar string = \"" + url + "\";\n" +
+                        "\t\treturn f.linkUnmasker(string);";
+
+        String unmaskedLink = (String) jse.executeScript(script);
+        return unmaskedLink;
+    }
+
+    private final MainWindow window;
+    String uid;
+
+    public gettingSongsTask(MainWindow window, String uid) {
+        this.window = window;
+        this.uid = uid;
+    }
+
+    @Override
+    protected Integer doInBackground() throws Exception {
+
+        if(Thread.currentThread().isInterrupted()){
+            return null;
+        }
+
+       int isThereAnySongsLeft = 0;
+       int offset = 0;
+            do{
+               // System.out.println(offset);
+                String script2 = "var callback = arguments[0];\n" +
+                        "\tvar async = true;\n" +
+                        "\tvar xhttp = new XMLHttpRequest();\n" +
+                        "  xhttp.onreadystatechange = function() {\n" +
+                        "    if (xhttp.readyState == 4 && xhttp.status == 200) {\n" +
+                        "    callback(xhttp.responseText);;\n" +
+                        "    }\n" +
+                        "  };\n" +
+                        "  xhttp.open(\"POST\", \"https://m.vk.com/audios"+uid+"?offset=" + offset + "\");\n" +
+                        "  xhttp.setRequestHeader(\"content-type\", \"application/x-www-form-urlencoded\");\n" +
+                        "  xhttp.send();";
+
+                String string = (String) ((JavascriptExecutor) driver).executeAsyncScript(script2);
+                //System.out.println(string);
+                Document doc = Jsoup.parse(string);
+                List<Element> audio = doc.getElementsByClass("ai_label");
+                List<Element> audioUrl = doc.getElementsByAttribute("value");
+               // System.out.println(audioUrl);
+                for (int i = 1; i < audio.size(); i++) {
+                    VK_API_Methods.audiolist.add(audio.get(i).text());
+                    JSONObject mp3 = new JSONObject();
+                    mp3.put("artist",audio.get(i).text().split("–")[0]);
+                    mp3.put("title",audio.get(i).text().split("–")[1]);
+                    mp3.put("url",audioUrl.get(i + 8).attr("value"));
+                    mp3.put("owner_id",Authorization.UID);
+                    mp3.put("aid",audio.get(i).text());
+                    JSONaudio.add(mp3);
+                    //MainWindow.audiolist.addElement(audio.get(i).text());
+                }
+                isThereAnySongsLeft = audio.size();
+                //MainWindow.VKaudioCount.setText("Песен: " + VK_API_Methods.AudioCount(Authorization.UID));
+                offset = offset + 50;
+            }while(isThereAnySongsLeft>1);
+
+        return null;
+    }
+}
+
+
+package beta;
+
+import jaco.mp3.player.MP3Player;
+
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Desktop;
+import java.awt.EventQueue;
+import java.awt.Font;
+import java.awt.Insets;
+import javax.imageio.ImageIO;
+import javax.swing.*;
+
+import org.apache.http.auth.AUTH;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.json.simple.JSONObject;
+
+import java.awt.event.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.ArrayList;
+
+import javax.swing.border.Border;
+import javax.swing.border.EmptyBorder;
+
+import static beta.Authorization.driver;
+
+/**
+ * <p> Класс графического интерфейса основного окна приложения (онлайн режим) <p>
+ *
+ * @author Иван
+ *         <br> @value USER_PATH Путь к директории программы
+ *         <br> currentsong строка содержащая в себе информацию, какая песня воспроизводится в данный момент
+ *         <br> DownloadProcess метка, отображающая процесс загрузки
+ *         <br> audiolist список аудиозаписей (Исполнитель - Название)
+ *         <br> friendlist список друзей (Имя Фамилия)
+ *         <br> queue очередь загрузки песен
+ */
+class MainWindow {
+    static boolean isThatFriendSongs = false;
+    private final boolean mode;
+    final String username;
+
+    private static MainWindow window;
+    JFrame frame;
+
+    JProgressBar progressBar;
+    private JLabel VKname;
+    private JLabel VKavatar;
+    public static JLabel VKaudioCount;
+    private JLabel audiolistLabel;
+    private JLabel friendlistLabel;
+    private JScrollPane scrollableAL;
+    private JScrollPane scrollableFL;
+    private JButton myAudioButton;
+    private JButton resumeButton;
+    private JButton pauseButton;
+    private JButton stopButton;
+    private JButton folderButton;
+    private JButton downloadButton;
+    private JButton onlineButton;
+    private JTextField ALfilter;
+    private JTextField FLfilter;
+
+    static gettingSongsTask myAudioTask;
+    static gettingFriendSongsTask friendAudioTask;
+    static displayingSongsTask dispTask;
+
+    private ActionListener onlineResumeButtonListener;
+    private ActionListener offlineResumeButtonListener;
+    private ActionListener onlineToMyAudioButtonListener;
+    private ActionListener offlineToMyAudioButtonListener;
+    private MouseAdapter onlineAudiolistListener;
+    private MouseAdapter onlineFriendlistListener;
+    private MouseAdapter offlineAudiolistListener;
+    private MouseAdapter offlineFriendlistListener;
+
+    JButton cancelButton;
+    JLabel offlineAudioCount;
+    private JLabel playingSong;
+    JLabel downloadProcess;
+    static FilteringJList audiolist;
+    FilteringJList friendlist;
+
+    final ArrayList<DownloadableAudio> queue = new ArrayList<>();
+    File USER_PATH;
+     MP3Player player;
+    private String currentsong;
+    private String offlinelink = "";
+
+
+    /**
+     * Для офлайн режима
+     */
+    private ArrayList<String> songPaths = new ArrayList<String>();
+    private ArrayList<String> songNames = new ArrayList<String>();
+    private ArrayList<String> friendNames = new ArrayList<String>();
+
+    public static void main(final boolean mode, final String username) {
+        EventQueue.invokeLater(new Runnable() {
+            public void run() {
+                try {
+                    window = new MainWindow(mode, username);
+                    window.frame.setVisible(true);
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
+    /**
+     * <p> Инициализация компонентов Swing, добавление слушателей к этим компонентам, осуществление доп. операций <p>
+     *
+     * @throws Exception
+     */
+    private MainWindow(boolean mode, String username) throws Exception {
+        this.mode = mode;
+        this.username = username;
+        initialize();
+        listeners();
+        variablesSaver.setUid();
+        myAudioTask = new gettingSongsTask(window,Authorization.UID);
+        myAudioTask.execute();
+        dispTask = new displayingSongsTask(window, Authorization.UID);
+        dispTask.execute();
+
+
+        if (mode) setOnlineMode();
+        else setOfflineMode();
+        player = new MP3Player();
+
+        if (username.equals("")) folderButton.setVisible(false);
+        else folderButton.setVisible(true);
+    }
+
+    private void initialize() throws Exception {
+        USER_PATH = new File(System.getProperty("user.home") + "/VK Music Manager/");
+        USER_PATH.mkdirs();
+        File songs = new File(System.getProperty("user.home") + "/VK Music Manager/songs.xls");
+        if (!songs.exists()) {
+            OutputStream out = new FileOutputStream(System.getProperty("user.home") + "/VK Music Manager/songs.xls");
+            HSSFWorkbook wb = new HSSFWorkbook();
+            wb.createSheet();
+            wb.write(out);
+
+            out.close();
+            wb.close();
+        }
+        Border border = BorderFactory.createLineBorder(Color.BLACK, 1);
+
+        /**
+         * Фрэйм окна
+         */
+        frame = new JFrame("VK Music Manager Beta");
+        frame.setResizable(false);
+        frame.setIconImage(ImageIO.read(getClass().getResource("/images/logo32.png")));
+        frame.setBounds(100, 100, 800, 570);
+        frame.setLocationRelativeTo(null);
+        frame.getContentPane().setLayout(null);
+        frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+
+        progressBar = new JProgressBar();
+        progressBar.setBounds(-2, 514, 798, 21);
+        progressBar.setStringPainted(true);
+        progressBar.setVisible(false);
+        progressBar.setBorderPainted(false);
+        frame.getContentPane().add(progressBar);
+
+        /**
+         * Аватар авторизованного пользователя
+         */
+        VKavatar = new JLabel();
+        VKavatar.setToolTipText("Мой профиль VK");
+        VKavatar.setBounds(25, 8, 51, 50);
+        frame.getContentPane().add(VKavatar);
+
+        /**
+         * Имя авторизованного ВКонтакте
+         */
+        VKname = new JLabel();
+        VKname.setBounds(84, 10, 150, 14);
+        VKname.setFont(new Font("Segoe UI Semibold", Font.PLAIN, 12));
+        frame.getContentPane().add(VKname);
+
+        /**
+         * Количество аудиозаписей пользователя ВКонтакте
+         */
+        VKaudioCount = new JLabel();
+        VKaudioCount.setBounds(84, 27, 150, 14);
+        VKaudioCount.setFont(new Font("Segoe UI Semibold", Font.PLAIN, 12));
+        frame.getContentPane().add(VKaudioCount);
+
+        /**
+         * Количество доступных офлайн песен
+         */
+        offlineAudioCount = new JLabel();
+        offlineAudioCount.setBounds(84, 44, 150, 14);
+        offlineAudioCount.setFont(new Font("Segoe UI Semibold", Font.PLAIN, 12));
+        offlineAudioCount.setForeground(new Color(255, 19, 0));
+        frame.getContentPane().add(offlineAudioCount);
+
+        audiolistLabel = new JLabel("Список песен:");
+        audiolistLabel.setBounds(25, 70, 500, 14);
+        audiolistLabel.setFont(new Font("Segoe UI Semibold", Font.PLAIN, 12));
+        frame.getContentPane().add(audiolistLabel);
+
+        friendlistLabel = new JLabel("Список друзей:");
+        friendlistLabel.setBounds(570, 70, 100, 14);
+        friendlistLabel.setFont(new Font("Segoe UI Semibold", Font.PLAIN, 12));
+        frame.getContentPane().add(friendlistLabel);
+
+
+        /**
+         * Список песен с фильтрацией и скроллингом
+         */
+        audiolist = new FilteringJList();
+        audiolist.setBounds(27, 90, 500, 350);
+        audiolist.setFixedCellHeight(20);
+        scrollableAL = new JScrollPane(audiolist);
+        scrollableAL.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollableAL.setBorder(border);
+        scrollableAL.setBounds(25, 115, 500, 330);
+        frame.getContentPane().add(scrollableAL, BorderLayout.CENTER);
+
+        /**
+         * Фильтр списка аудиозаписей
+         */
+        ALfilter = new JTextField("Искать");
+        ALfilter.setForeground(Color.LIGHT_GRAY);
+        ALfilter.setHorizontalAlignment(JTextField.CENTER);
+        ALfilter.setBounds(25, 90, 500, 26);
+        ALfilter.setBorder(new EmptyBorder(5, 5, 5, 5));
+        ALfilter.setBorder(border);
+        audiolist.installJTextField(ALfilter);
+        frame.getContentPane().add(ALfilter, BorderLayout.NORTH);
+
+        /**
+         * Список друзей с фильтрацией и скроллингом
+         */
+        friendlist = new FilteringJList();
+        friendlist.setBounds(570, 90, 200, 330);
+        friendlist.setFixedCellHeight(20);
+        friendlist.setCellRenderer(new FriendlistRenderer(username));
+        friendlist.setBorder(new EmptyBorder(5, 5, 5, 5));
+        scrollableFL = new JScrollPane(friendlist);
+        scrollableFL.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollableFL.setBorder(border);
+        scrollableFL.setBounds(570, 115, 200, 330);
+        frame.getContentPane().add(scrollableFL, BorderLayout.CENTER);
+
+        /**
+         * Кнопка возврата к аудио авторизованного пользователя
+         */
+        myAudioButton = new JButton("К моим аудиозаписям");
+        myAudioButton.setBackground(UIManager.getColor("ToolBar.light"));
+        scrollableFL.setColumnHeaderView(myAudioButton);
+
+        /**
+         * Фильтр списка друзей
+         */
+        FLfilter = new JTextField("Искать");
+        FLfilter.setForeground(Color.LIGHT_GRAY);
+        FLfilter.setHorizontalAlignment(JTextField.CENTER);
+        FLfilter.setBorder(border);
+        FLfilter.setBounds(570, 90, 200, 26);
+        friendlist.installJTextField(FLfilter);
+        frame.getContentPane().add(FLfilter, BorderLayout.NORTH);
+
+        /**
+         * Кнопка продолжающая воспроизведение
+         */
+        resumeButton = new JButton("");
+        resumeButton.setToolTipText("Продолжить");
+        resumeButton.setIcon(new ImageIcon(ImageIO.read(getClass().getResource("/images/play2_new.png"))));
+        resumeButton.setBounds(340, 18, 32, 31);
+        resumeButton.setFocusPainted(false);
+        frame.getContentPane().add(resumeButton);
+
+        /**
+         * Кнопка паузы воспроизведения
+         */
+        pauseButton = new JButton("");
+        pauseButton.setToolTipText("Пауза");
+        pauseButton.setIcon(new ImageIcon(ImageIO.read(getClass().getResource("/images/pause_new.png"))));
+        pauseButton.setBounds(380, 18, 32, 31);
+        pauseButton.setFocusPainted(false);
+        frame.getContentPane().add(pauseButton);
+
+        /**
+         * Кнопка остановки воспроизведения
+         */
+        stopButton = new JButton("");
+        stopButton.setToolTipText("Остановить");
+        stopButton.setIcon(new ImageIcon(ImageIO.read(getClass().getResource("/images/stop_new.png"))));
+        stopButton.setBounds(420, 18, 32, 31);
+        stopButton.setFocusPainted(false);
+        frame.getContentPane().add(stopButton);
+
+        /**
+         * Кнопка скачивания
+         */
+        downloadButton = new JButton("Скачать");
+        downloadButton.setToolTipText("Скачать выбранную песню");
+        downloadButton.setBounds(234, 23, 91, 25);
+        downloadButton.setFocusPainted(false);
+        frame.getContentPane().add(downloadButton);
+
+        onlineButton = new JButton("Онлайн");
+        onlineButton.setToolTipText("Перейти к онлайн-версии");
+        onlineButton.setBounds(234, 23, 91, 25);
+        onlineButton.setFocusPainted(false);
+        frame.getContentPane().add(onlineButton);
+
+        /**
+         *  Кнопка перехода в папку загрузок
+         */
+        folderButton = new JButton("Папка загрузок");
+        folderButton.setToolTipText("Открыть папку с песнями");
+        folderButton.setBounds(647, 23, 123, 25);
+        frame.getContentPane().add(folderButton);
+
+        /**
+         * Информация о текущем воспроизведении музыки
+         */
+        playingSong = new JLabel("", SwingConstants.CENTER);
+        playingSong.setBounds(25, 460, 746, 20);
+        playingSong.setFont(new Font("Segoe UI Semibold", Font.PLAIN, 12));
+        frame.getContentPane().add(playingSong);
+        /**
+         * Информация о процессе загрузки
+         */
+        downloadProcess = new JLabel("", SwingConstants.CENTER);
+        downloadProcess.setBounds(25, 486, 746, 20);
+        downloadProcess.setFont(new Font("Segoe UI Semibold", Font.PLAIN, 12));
+        frame.getContentPane().add(downloadProcess);
+
+        cancelButton = new JButton("×");
+        cancelButton.setBounds(382, 514, 30, 30);
+        cancelButton.setVisible(false);
+
+        cancelButton.setBorder(null);
+        cancelButton.setBorderPainted(false);
+        cancelButton.setMargin(new Insets(0, 0, 0, 0));
+        cancelButton.setFocusPainted(false);
+        cancelButton.setContentAreaFilled(false);
+        cancelButton.setFont(new Font("Arial", Font.PLAIN, 20));
+        cancelButton.setToolTipText("Отменить загрузку");
+        cancelButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        cancelButton.setVerticalAlignment(SwingConstants.TOP);
+        frame.getContentPane().add(cancelButton);
+    }
+
+    private void listeners() {
+        /**
+         * Слушатель выполняющий открытия директории программы
+         */
+        folderButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                try {
+                    Desktop.getDesktop().open(new File(USER_PATH.getAbsolutePath() + "/" + username));
+                } catch (IOException e1) {
+                    e1.printStackTrace();
+                }
+            }
+        });
+
+        VKavatar.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 5) {
+                    JOptionPane.showMessageDialog(frame,
+                            "Над программой работали:\nЦарёв Иван, Борисов Александр, Буртаев Андрей, Никулин Сергей, Жиляев Александр, Фидлер Сергей\n"
+                                    + "В рамках курсового проекта по дисциплине `Программирование на языках высокого уровня` под руководством преподавателя Власенко Олега Федосовича.\nУльяновск, 2014/2015",
+                            "Разработчики",
+                            JOptionPane.PLAIN_MESSAGE);
+                }
+            }
+        });
+
+        /**
+         * Слушатель выполняющий открытия окна подтверждения при закрытия основного окна
+         */
+        frame.addWindowListener(new WindowAdapter() {
+            public void windowClosing(WindowEvent event) {
+                Object[] options = {"Да", "Нет"};
+                int n = JOptionPane.showOptionDialog(event.getWindow(),
+                        "Вы действительно хотите выйти?", "Подтверждение",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
+                if (n == JOptionPane.YES_OPTION) driver.quit();
+                System.exit(0);
+            }
+        });
+
+        /**
+         * Слушатель, осуществляющий загрузку выбранной песни. После клика по кнопке, если интернет-соединение
+         * отсутствует, высвечивается информация об этом и программа переходит в офлайн режим.
+         * <br> В ином случае, если песня уже не закачивается, открывается окно сохранения.
+         */
+        downloadButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                if (audiolist.getSelectedValuesList().size() > 1) {
+                    Object[] options = {"Да", "Нет"};
+                    int n = JOptionPane.showOptionDialog(frame,
+                            "Вы выбрали несколько песен, поэтому процесс загрузки, возможно займёт длительное время. \nВ данном случае Вы не сможете поменять названия загружаемых песен.\nВы действительно хотите загрузить выбранные аудиозаписи? \n", "Подтверждение",
+                            JOptionPane.YES_NO_OPTION,
+                            JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
+                    if (n == JOptionPane.YES_OPTION) {
+                        processTask task = new processTask(window);
+                        task.execute();
+                    }
+                } else {
+                    if (!audiolist.isSelectionEmpty()) {
+                        int index = 0;
+                        JSONObject mp3;
+                        if(isThatFriendSongs){
+                                index = VK_API_Methods.friendaudiolist.indexOf(audiolist.getSelectedValue());
+                                mp3 = (JSONObject) VK_API_Methods.JSONfriendaudio.get(index);
+
+                        } else{
+                                index = VK_API_Methods.audiolist.indexOf(audiolist.getSelectedValue());
+                                mp3 = (JSONObject) VK_API_Methods.JSONaudio.get(index);
+
+                        }
+//
+//                        index = VK_API_Methods.audiolist.indexOf(audiolist.getSelectedValue());
+//                        JSONObject mp3 = (JSONObject) VK_API_Methods.JSONaudio.get(index);
+                        String artist = mp3.get("artist").toString().replaceAll("amp;", "");
+                        String title = mp3.get("title").toString().replaceAll("amp;", "");
+
+                        if (!NetworkMethods.isConnected()) {
+                            if (player.getPlayList().size() > 0 && !player.getPlayList().get(0).toString().contains("file")) {
+                                player.stop();
+                                playingSong.setText("");
+                            }
+                            JOptionPane.showMessageDialog(frame,
+                                    "Интернет-подключение отсутствует. Сейчас программа перейдет в офлайн-режим.",
+                                    "Предупреждение",
+                                    JOptionPane.WARNING_MESSAGE);
+                            setOfflineMode();
+                        } else {
+                            boolean flag = false;
+                            String url = (String) mp3.get("url");
+                            String aid = mp3.get("aid").toString();
+                            for (DownloadableAudio aQueue : queue)
+                                if (aQueue.aid.equals(aid)) {
+                                    JOptionPane.showMessageDialog(frame,
+                                            "Эта песня уже добавлена в очередь скачивания.",
+                                            "Предупреждение",
+                                            JOptionPane.WARNING_MESSAGE);
+                                    flag = true;
+                                    break;
+                                }
+                            try {
+                                if (!flag) {
+                                    if (mp3.get("owner_id").toString().equals(Authorization.UID))
+                                        new SaveWindow(new DownloadableAudio(USER_PATH, artist, title, url, username, "", aid), window);
+                                    else
+                                        new SaveWindow(new DownloadableAudio(USER_PATH, artist, title, url, username, (VK_API_Methods.getNameById(mp3.get("owner_id").toString(), "nom")), aid), window);
+                                }
+
+                            } catch (Exception e1) {
+                                e1.printStackTrace();
+                            }
+                            audiolist.clearSelection();
+                        }
+                    } else {
+                        JOptionPane.showMessageDialog(frame,
+                                "Сначала выберите аудиозапись.",
+                                "Внимание",
+                                JOptionPane.WARNING_MESSAGE);
+                    }
+                }
+            }
+        });
+
+        cancelButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent event) {
+                SaveWindow.downloadTask.cancel(true);
+                queue.clear();
+                downloadProcess.setText("");
+            }
+        });
+        /**
+         * Слушатель кнопки переключения на список аудио авторизованного пользователя. Если интернет-соединение отсутствует,
+         * то программа предупреждает об этом и переходит в офлайн режим. Иначе с помощью метода получаем список авторизован
+         * ного пользователя.
+         */
+        onlineToMyAudioButtonListener = new ActionListener() {
+            public void actionPerformed(ActionEvent event) {
+                if (!NetworkMethods.isConnected()) {
+                    if (player.getPlayList().size() > 0 && !player.getPlayList().get(0).toString().contains("file")) {
+                        player.stop();
+                        playingSong.setText("");
+                    }
+                    JOptionPane.showMessageDialog(frame,
+                            "Интернет-подключение отсутствует. Сейчас программа перейдёт в офлайн-режим.",
+                            "Предупреждение",
+                            JOptionPane.WARNING_MESSAGE);
+                    setOfflineMode();
+                } else {
+                    audiolist.clear();
+                    try {
+
+                            //audiolist.addElements(VK_API_Methods.audiolist);
+                            //variablesSaver.setIsInterrupted(true);
+                            variablesSaver.setUid(Authorization.UID);
+                           // Thread.sleep(500);
+//                        dispTask = new displayingSongsTask(window,Authorization.UID);
+//                        dispTask.execute();
+                        isThatFriendSongs = false;
+
+
+ //                       isThatFriendSongs = false;
+
+                      //  audiolist.addElements(VK_API_Methods.audiolist);
+                        //myAudioTask.cancel(false);
+                        //friendAudioTask.cancel(true);
+                        //VK_API_Methods.JSONaudio.clear();
+                        //VK_API_Methods.audiolist.clear();
+                        //myAudioTask = new gettingSongsTask(window,Authorization.UID);
+                        //myAudioTask.execute();
+                        //audiolist.clear();
+//                        dispTask = new displayingSongsTask(window,Authorization.UID);
+//                        dispTask.execute();
+                        //isThatFriendSongs = false;
+                        //audiolist.addElements(VK_API_Methods.audiolist);
+                        //friendAudioTask.cancel(false);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    friendlist.clearSelection();
+                    audiolistLabel.setText("Список песен: ");
+                    audiolist.clearSelection();
+                    audiolist.setCellRenderer(new AudiolistRenderer(username));
+                }
+            }
+        };
+
+        offlineToMyAudioButtonListener = new ActionListener() {
+            public void actionPerformed(ActionEvent arg0) {
+                audiolist.clearSelection();
+                songPaths = new ArrayList<String>();
+                songNames = new ArrayList<String>();
+
+                try {
+                    InputStream in = new FileInputStream(System.getProperty("user.home") + "/VK Music Manager/songs.xls");
+                    HSSFWorkbook wb = new HSSFWorkbook(in);
+
+                    Sheet sheet = wb.getSheetAt(0);
+
+                    for (Row row : sheet)
+                        if (row.getCell(1).getStringCellValue().equals(username) && row.getCell(2).getStringCellValue().equals("")) {
+                            String s = row.getCell(3).getStringCellValue();
+                            songPaths.add(s);
+                            songNames.add(s.substring(s.lastIndexOf("\\") + 1, s.length() - 4));
+                        }
+                    in.close();
+                    wb.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+
+                audiolist.clear();
+                audiolist.addElements(songNames);
+            }
+        };
+
+        /**
+         * Слушатель кнопки продолжения воспроизведения. Если воспроизведение приостановлено или в плейлисте содержится песня,
+         * то воспроизводим. В ином случае получаем ссылку на песню, и путь к песне, если путь к песне существует, то воспроизводим песню.
+         * Если путь к песне не существует и если интернет-соединение присутствует, то воспроизводим песню по ссылке, иначе переходим в офлайн-режим.
+         */
+        onlineResumeButtonListener = new ActionListener() {
+            public void actionPerformed(ActionEvent arg0) {
+                if (player.isPaused() || player.getPlayList().size() > 0 && audiolist.isSelectionEmpty()) {
+                    player.play();
+                    playingSong.setText(currentsong);
+                } else {
+                    JSONObject mp3;
+                    if(isThatFriendSongs){
+                        if (!audiolist.isSelectionEmpty()) {
+                            int index = VK_API_Methods.friendaudiolist.indexOf(audiolist.getSelectedValue());
+                            mp3 = (JSONObject) VK_API_Methods.JSONfriendaudio.get(index);
+                        } else {
+                            mp3 = (JSONObject) VK_API_Methods.JSONfriendaudio.get(0);
+                        }
+                    } else {
+                        if (!audiolist.isSelectionEmpty()) {
+                            int index = VK_API_Methods.audiolist.indexOf(audiolist.getSelectedValue());
+                            mp3 = (JSONObject) VK_API_Methods.JSONaudio.get(index);
+                        } else {
+                            mp3 = (JSONObject) VK_API_Methods.JSONaudio.get(0);
+                        }
+
+                    }
+                    String onlinelink = (String) mp3.get("url");
+                    offlinelink = AppFilesWorkMethods.OfflineAccess(mp3.get("aid").toString());
+                    String artist = mp3.get("artist").toString().replaceAll("amp;", "");
+                    String title = mp3.get("title").toString().replaceAll("amp;", "");
+
+                    if (!offlinelink.equals("")) {
+                        player.stop();
+                        player = new MP3Player(new File(offlinelink));
+                        player.play();
+                        currentsong = "Сейчас играет: " + artist + " - " + title;
+                        playingSong.setText(currentsong);
+                        offlinelink = "";
+                    } else {
+                        if (NetworkMethods.isConnected()) {
+                            try {
+                                player.stop();
+                                player = new MP3Player(new URL(onlinelink));
+                                player.play();
+                                currentsong = "Сейчас играет: " + artist + " - " + title;
+                                playingSong.setText(currentsong);
+                            } catch (MalformedURLException e) {
+                                playingSong.setText("Ошибка воспроизведения");
+                            }
+                        } else {
+                            if (player.getPlayList().size() > 0 && !player.getPlayList().get(0).toString().contains("file")) {
+                                player.stop();
+                                playingSong.setText("");
+                            }
+                            JOptionPane.showMessageDialog(frame,
+                                    "Интернет-подключение отсутствует. Сейчас программа перейдет в офлайн-режим.",
+                                    "Предупреждение",
+                                    JOptionPane.WARNING_MESSAGE);
+                            setOfflineMode();
+                        }
+                    }
+                }
+            }
+        };
+
+        offlineResumeButtonListener = new ActionListener() {
+            public void actionPerformed(ActionEvent arg0) {
+                if (player.isPaused() || player.getPlayList().size() > 0 && audiolist.isSelectionEmpty()) {
+                    player.play();
+                    playingSong.setText(currentsong);
+                } else {
+                    File f;
+                    if (!audiolist.isSelectionEmpty()) {
+                        int index = songNames.indexOf(audiolist.getSelectedValue());
+                        f = new File(songPaths.get(index));
+                        currentsong = "Сейчас играет: " + songNames.get(index);
+                    } else {
+                        f = new File(songPaths.get(0));
+                        currentsong = "Сейчас играет: " + songNames.get(0);
+                    }
+                    player.stop();
+                    player = new MP3Player(f);
+                    player.play();
+
+                    playingSong.setText(currentsong);
+                }
+            }
+        };
+
+        /**
+         */
+        pauseButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent arg0) {
+                player.pause();
+                playingSong.setText(playingSong.getText().replaceAll("Сейчас играет", "Приостановлено"));
+            }
+        });
+
+        /**
+         * Слушатель кнопки остановки
+         */
+        stopButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent arg0) {
+                player.stop();
+                playingSong.setText("");
+            }
+        });
+
+        onlineButton.addActionListener(new ActionListener() { // Переход к онлайн-режиму
+            public void actionPerformed(ActionEvent arg0) {
+                onlineTask task = new onlineTask(window);
+                task.execute();
+            }
+        });
+
+        /**
+         * Обработчик кликов по списку аудиозаписей. Получаем ссылку на песню и путь к песне.
+         * Если было 2 клика по списку, то если путь к песне существует, то песня вопроизводится, иначе если интернет-соединение
+         * присутствует, то песня вопроизводится по ссылке, иначе программа переходит в офлайн режим.
+         */
+        onlineAudiolistListener = new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                int modifiers = e.getModifiers();
+                if ((modifiers & InputEvent.BUTTON1_MASK) == InputEvent.BUTTON1_MASK) {
+                    int index = audiolist.locationToIndex(e.getPoint());
+                    index = 0;
+
+
+                    JSONObject mp3 ;
+                    if(isThatFriendSongs){
+
+                        index = VK_API_Methods.friendaudiolist.indexOf(audiolist.getSelectedValue());
+                            mp3 = (JSONObject) VK_API_Methods.JSONfriendaudio.get(index);
+
+                    } else {
+
+                        index = VK_API_Methods.audiolist.indexOf(audiolist.getSelectedValue());
+                            mp3 = (JSONObject) VK_API_Methods.JSONaudio.get(index);
+
+                    }
+
+                    String onlinelink = mp3.get("url").toString();
+                    offlinelink = AppFilesWorkMethods.OfflineAccess(mp3.get("aid").toString());
+                    String artist = mp3.get("artist").toString().replaceAll("amp;", "");
+                    String title = mp3.get("title").toString().replaceAll("amp;", "");
+
+                    if (e.getClickCount() == 1) {
+                        if (offlinelink.equals("")) downloadButton.setEnabled(true);
+                        else downloadButton.setEnabled(false);
+                        frame.revalidate();
+                    }
+                    if (e.getClickCount() == 2) {
+                        if (!offlinelink.equals("")) {
+                            player.stop();
+                            player = new MP3Player(new File(offlinelink));
+                            player.play();
+                            currentsong = "Сейчас играет: " + artist + " - " + title;
+                            playingSong.setText(currentsong);
+                            offlinelink = "";
+                        } else {
+                            if (NetworkMethods.isConnected()) {
+                                player.stop();
+                                try {
+                                    player = new MP3Player(new URL(onlinelink));
+                                } catch (MalformedURLException e1) {
+                                    playingSong.setText("Ошибка воспроизведения");
+                                }
+                                player.play();
+                                currentsong = "Сейчас играет: " + artist + " - " + title;
+                                playingSong.setText(currentsong);
+                            } else {
+                                if (player.getPlayList().size() > 0 && !player.getPlayList().get(0).toString().contains("file")) {
+                                    player.stop();
+                                    playingSong.setText("");
+                                }
+                                JOptionPane.showMessageDialog(frame,
+                                        "Интернет-подключение отсутствует. Сейчас программа перейдет в офлайн-режим.",
+                                        "Предупреждение",
+                                        JOptionPane.WARNING_MESSAGE);
+                                setOfflineMode();
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        offlineAudiolistListener = new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                int modifiers = e.getModifiers();
+                if ((modifiers & InputEvent.BUTTON1_MASK) == InputEvent.BUTTON1_MASK) {
+                    if (e.getClickCount() == 2) {
+                        int index = songNames.indexOf(audiolist.getSelectedValue());
+
+                        File f = new File(songPaths.get(index));
+                        offlinelink = f.getAbsolutePath();
+                        player.stop();
+                        player = new MP3Player(f);
+                        player.play();
+
+                        currentsong = "Сейчас играет: " + songNames.get(index);
+                        playingSong.setText(currentsong);
+                    }
+                }
+            }
+        };
+
+        /**
+         * Обработчик кликов по списку друзей. Если интернет-соединение отсутствует, то программа переходит в офлайн режим,
+         * иначе если аудио друга открыты настройками приватности, то получаем список аудио, иначе выводим сообщение об ошибке.
+         */
+        onlineFriendlistListener = new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                audiolist.clearSelection();
+                int index = friendlist.locationToIndex(e.getPoint());
+                index = VK_API_Methods.friendslist.indexOf(friendlist.getSelectedValue());
+
+                if (e.getClickCount() == 2) {
+                    if (!NetworkMethods.isConnected()) {
+                        if (player.getPlayList().size() > 0 && !player.getPlayList().get(0).toString().contains("file")) {
+                            player.stop();
+                            playingSong.setText("");
+                        }
+                        JOptionPane.showMessageDialog(frame,
+                                "Интернет-подключение отсутствует. Сейчас программа перейдет в офлайн-режим.",
+                                "Предупреждение",
+                                JOptionPane.WARNING_MESSAGE);
+                        setOfflineMode();
+                    } else {
+                        JSONObject friend = (JSONObject) VK_API_Methods.JSONfriends.get(index);
+                        String uid = (String) friend.get("uid").toString();
+
+
+                        audiolist.clear();
+                        //frame.revalidate();
+                        try {
+                            //audiolist.addElements(VK_API_Methods.audiolist);
+//                            if(!friendAudioTask.isDone()){
+//                                friendAudioTask.cancel(true);
+//                            }
+                            //myAudioTask.cancel(true);
+//                            VK_API_Methods.friendaudiolist.clear();
+//                            VK_API_Methods.JSONfriendaudio.clear();
+                            if(isThatFriendSongs){
+                                variablesSaver.setUid(uid);
+                            } else{
+                            isThatFriendSongs = true;
+                            variablesSaver.setUid(uid);
+                            friendAudioTask = new gettingFriendSongsTask(window,uid);
+                            friendAudioTask.execute();
+                            }
+//                            dispTask = new displayingSongsTask(window,uid);
+//                            dispTask.execute();
+
+//                            if(isThatFriendSongs){
+////                                friendAudioTask.wait();
+////                                dispTask.wait();
+//                                    VK_API_Methods.friendaudiolist.clear();
+//                                    VK_API_Methods.JSONfriendaudio.clear();
+//                                    variablesSaver.setUid(uid);
+//                                    audiolist.clear();
+//
+//
+////                                friendAudioTask.notify();
+////                                dispTask.notify();
+//                            } else{
+//                               // dispTask.wait();
+//                                //dispTask.pause();
+////                                isThatFriendSongs = true;
+////                                variablesSaver.setUid(uid);
+//                                //variablesSaver.setIsInterrupted(true);
+//
+//                                    isThatFriendSongs = true;
+//                                    variablesSaver.setUid(uid);
+//                                    variablesSaver.setIsInterrupted(true);
+//                                friendAudioTask = new gettingFriendSongsTask(window,uid);
+//                                friendAudioTask.execute();
+//                                //dispTask.resume();
+//                                //dispTask.notify();
+//                            }
+
+//                            isThatFriendSongs = true;
+//                            friendAudioTask = new gettingFriendSongsTask(window,uid);
+//                            friendAudioTask.execute();
+                            frame.revalidate();
+                            //variablesSaver.setUid(uid);
+//                            dispTask = new displayingSongsTask(window,uid);
+//                            dispTask.execute();
+
+                            audiolistLabel.setText("Список песен " + VK_API_Methods.getNameById(uid, "gen") + ":");
+                            audiolist.clearSelection();
+                            audiolist.setCellRenderer(new AudiolistRenderer(username));
+
+                            downloadButton.setEnabled(true);
+                            frame.revalidate();
+                            //myAudioTask.cancel(false);
+                        } catch (Exception e1) {
+                            JOptionPane.showMessageDialog(frame,
+                                    "Аудиозаписи этого человека скрыты.",
+                                    "Неудача",
+                                    JOptionPane.INFORMATION_MESSAGE);
+                        }
+                    }
+                }
+            }
+        };
+
+        offlineFriendlistListener = new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    audiolist.clearSelection();
+                    int index = friendNames.indexOf(friendlist.getSelectedValue().toString());
+                    String owner = friendNames.get(index);
+                    songPaths = new ArrayList<String>();
+                    songNames = new ArrayList<String>();
+
+                    try {
+                        InputStream in = new FileInputStream(System.getProperty("user.home") + "/VK Music Manager/songs.xls");
+                        HSSFWorkbook wb = new HSSFWorkbook(in);
+
+                        Sheet sheet = wb.getSheetAt(0);
+
+                        for (Row row : sheet) {
+                            if (row.getCell(1).getStringCellValue().equals(username) && row.getCell(2).getStringCellValue().equals(owner)) {
+                                String s = row.getCell(3).getStringCellValue();
+                                songPaths.add(s);
+                                songNames.add(s.substring(s.lastIndexOf("\\") + 1, s.length() - 4));
+                            }
+                        }
+                        in.close();
+                        wb.close();
+                    } catch (IOException e1) {
+                        e1.printStackTrace();
+                    }
+
+                    audiolist.clear();
+                    audiolist.addElements(songNames);
+                }
+            }
+        };
+
+
+
+        /**
+         * Обработчики кликов по фильтру списков
+         */
+
+
+
+        ALfilter.addFocusListener(new FocusListener() {
+            @Override
+            public void focusGained(FocusEvent fe) {
+                if (ALfilter.getText().equals("Искать")) {
+                    ALfilter.setForeground(Color.BLACK);
+                    ALfilter.setHorizontalAlignment(JTextField.LEFT);
+                    ALfilter.setText("");
+                }
+            }
+
+            @Override
+            public void focusLost(FocusEvent fe) {
+                if (ALfilter.getText().equals("")) {
+                    ALfilter.setForeground(Color.LIGHT_GRAY);
+                    ALfilter.setHorizontalAlignment(JTextField.CENTER);
+                    audiolist.uninstallJTextField(ALfilter);
+                    ALfilter.setText("Искать");
+                    audiolist.installJTextField(ALfilter);
+                }
+            }
+        });
+        FLfilter.addFocusListener(new FocusListener() {
+            @Override
+            public void focusGained(FocusEvent arg0) {
+                if (FLfilter.getText().equals("Искать")) {
+                    FLfilter.setForeground(Color.BLACK);
+                    FLfilter.setHorizontalAlignment(JTextField.LEFT);
+                    FLfilter.setText("");
+                }
+            }
+
+            @Override
+            public void focusLost(FocusEvent arg0) {
+                if (FLfilter.getText().equals("")) {
+                    FLfilter.setForeground(Color.LIGHT_GRAY);
+                    FLfilter.setHorizontalAlignment(JTextField.CENTER);
+                    friendlist.uninstallJTextField(FLfilter);
+                    FLfilter.setText("Искать");
+                    friendlist.installJTextField(FLfilter);
+                }
+            }
+        });
+    }
+
+    void setOnlineMode() throws Exception {
+        ALfilter.setForeground(Color.LIGHT_GRAY);
+        ALfilter.setHorizontalAlignment(JTextField.CENTER);
+        audiolist.uninstallJTextField(ALfilter);
+        ALfilter.setText("Искать");
+        audiolist.installJTextField(ALfilter);
+
+        FLfilter.setForeground(Color.LIGHT_GRAY);
+        FLfilter.setHorizontalAlignment(JTextField.CENTER);
+        friendlist.uninstallJTextField(FLfilter);
+        FLfilter.setText("Искать");
+        friendlist.installJTextField(FLfilter);
+
+        resumeButton.removeActionListener(offlineResumeButtonListener);
+        myAudioButton.removeActionListener(offlineToMyAudioButtonListener);
+        audiolist.removeMouseListener(offlineAudiolistListener);
+        friendlist.removeMouseListener(offlineFriendlistListener);
+
+        resumeButton.addActionListener(onlineResumeButtonListener);
+        myAudioButton.addActionListener(onlineToMyAudioButtonListener);
+        audiolist.addMouseListener(onlineAudiolistListener);
+        friendlist.addMouseListener(onlineFriendlistListener);
+
+        VKname.setText("VK: " + username);
+      //  VKaudioCount.setText("Песен: " + variablesSaver.getCurrentSize());
+        VKavatar.setIcon(new ImageIcon(new URL(VK_API_Methods.getAvatarById(Authorization.UID))));
+        offlineAudioCount.setText("Песен офлайн: " + AppFilesWorkMethods.OfflineCount(username));
+
+        VKaudioCount.setVisible(true);
+        downloadButton.setVisible(true);
+        onlineButton.setVisible(false);
+
+        audiolist.clear();
+        friendlist.clear();
+        initOnlineAudioList(VK_API_Methods.audiolist);
+        initOnlineFriendList(VK_API_Methods.friendsGet(Authorization.UID));
+
+    }
+
+    void setOfflineMode() {
+        ALfilter.setForeground(Color.LIGHT_GRAY);
+        ALfilter.setHorizontalAlignment(JTextField.CENTER);
+        audiolist.uninstallJTextField(ALfilter);
+        ALfilter.setText("Искать");
+        audiolist.installJTextField(ALfilter);
+
+        FLfilter.setForeground(Color.LIGHT_GRAY);
+        FLfilter.setHorizontalAlignment(JTextField.CENTER);
+        friendlist.uninstallJTextField(FLfilter);
+        FLfilter.setText("Искать");
+        friendlist.installJTextField(FLfilter);
+
+        audiolist.setCellRenderer(new DefaultListCellRenderer());
+        friendlist.setCellRenderer(new DefaultListCellRenderer());
+        resumeButton.removeActionListener(onlineResumeButtonListener);
+        myAudioButton.removeActionListener(onlineToMyAudioButtonListener);
+        audiolist.removeMouseListener(onlineAudiolistListener);
+        friendlist.removeMouseListener(onlineFriendlistListener);
+
+        resumeButton.addActionListener(offlineResumeButtonListener);
+        myAudioButton.addActionListener(offlineToMyAudioButtonListener);
+        audiolist.addMouseListener(offlineAudiolistListener);
+        friendlist.addMouseListener(offlineFriendlistListener);
+
+        VKname.setText("Офлайн-режим");
+        VKaudioCount.setText(username);
+        try {
+            VKavatar.setIcon(new ImageIcon(ImageIO.read(getClass().getResource("/images/avatar_off.jpg"))));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        offlineAudioCount.setText("Песен офлайн: " + AppFilesWorkMethods.OfflineCount(username));
+        audiolistLabel.setText("Список песен: ");
+
+        downloadButton.setVisible(false);
+        onlineButton.setVisible(true);
+
+        audiolist.clear();
+        friendlist.clear();
+        initOfflineAudioList(AppFilesWorkMethods.getAudioByName(username));
+        initOfflineFriendList(AppFilesWorkMethods.getFriendByName(username));
+    }
+
+    private void initOnlineAudioList(ArrayList<String> audioByID) {
+        audiolist.addElements(audioByID);
+        audiolist.setCellRenderer(new AudiolistRenderer(username));
+    }
+
+    private void initOnlineFriendList(ArrayList<String> friendsByID) {
+        friendlist.addElements(friendsByID);
+        friendlist.setCellRenderer(new FriendlistRenderer(username));
+    }
+
+
+    private void initOfflineAudioList(ArrayList<String> audioByName) {
+        songPaths.clear();
+        songNames.clear();
+        songPaths = audioByName;
+        for (String s : songPaths)
+            songNames.add(s.substring(s.lastIndexOf("\\") + 1, s.length() - 4));
+        audiolist.addElements(songNames);
+    }
+
+    private void initOfflineFriendList(ArrayList<String> friendsByName) {
+        friendNames.clear();
+        friendNames = friendsByName;
+        friendlist.addElements(friendNames);
+    }
+}
+
+package beta;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLConnection;
+
+/**
+ * <p>Методы, работающие с интернет-соединением.</p>
+ * @author Иван
+ * @methods Проверка наличия интернет-соединения, получение содержимого веб-страницы, получение размера содержимого веб-страницы
+ */
+class NetworkMethods {
+	/**
+	 * <p>Проверяет наличие интернет-соединения.</p>
+	 * @return true, если интернет есть, и false, если нет
+	 */
+	public static boolean isConnected() {
+		try {
+			URL URL = new URL("http://google.com/");
+			URLConnection URLConnection = URL.openConnection();
+			URLConnection.setReadTimeout(1000);
+			URLConnection.connect();
+		} 
+		catch (MalformedURLException e) { 
+			System.out.println("Неправильный URL!");
+		} 
+		catch (IOException e) {
+			return false;
+		}
+		return true;
+	}
+
+	/**
+	 * <p>Получает содержимое веб-страницы.</p>
+	 *
+	 * @param url Адрес страницы, содержимое которой нужно получить
+	 * @return Содержимое страницы в виде строки.
+	 * @throws IOException 
+	 */
+	public static String getUrlSource(String url) throws IOException {
+		StringBuilder a = new StringBuilder();
+		try {
+			URL u = new URL(url);
+			URLConnection urlconn = u.openConnection();
+
+			BufferedReader in = new BufferedReader(new InputStreamReader(urlconn.getInputStream(), "UTF-8"));
+			String s;
+
+			while ((s = in.readLine()) != null)
+				a.append(s);
+			in.close();
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+		}
+
+		return a.toString();
+	}
+
+	/**
+	 * <p>Получение содержимого веб-страницы.</p>
+	 * @param url Адрес страницы, размер содержимого которой нужно получить
+	 * @return Размер содержимого в виде
+	 */
+	public static int getFileSize(String url) { 
+		try {
+			URLConnection urlconn = new URL(url).openConnection();
+			return urlconn.getContentLength();
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return 0;
+	}
+}
+
+package beta;
+
+import java.io.File;
+import java.io.IOException;
+import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
+
+import org.apache.commons.io.FileUtils;
+import org.json.simple.parser.ParseException;
+
+class onlineTask extends SwingWorker<Integer, Integer> {
+	private final MainWindow window;
+
+	public onlineTask(MainWindow window) {
+		this.window = window;
+	}
+
+	@Override
+	protected Integer doInBackground() throws InterruptedException, IOException, ParseException {
+		if (NetworkMethods.isConnected()) {
+			File log = new File(System.getProperty("user.home")+"/VK Music Manager/log.txt");
+			if (log.exists()) {
+				String s = "";
+				try {
+					s = FileUtils.readFileToString(log);
+				} catch (IOException e) {
+					this.cancel(true);
+					e.printStackTrace();
+				}
+				String login = s.split("\n")[0];
+				String password = s.split("\n")[1];
+				Authorization session = new Authorization(login, password);
+				
+				window.progressBar.setIndeterminate(true);
+				window.progressBar.setVisible(true);
+				window.progressBar.setString("Авторизация");
+				String status = session.Authorize();
+				if (status.equals("success")) {
+					SwingUtilities.invokeLater(new Runnable() {
+						public void run() {
+							try {
+								window.progressBar.setString("Переход к онлайн-режиму");
+								window.setOnlineMode();
+							} catch (Exception e) {
+								onlineTask.this.cancel(true);
+								e.printStackTrace();
+							}
+						}
+					});
+				}
+				else {
+					SwingUtilities.invokeLater(new Runnable() {
+						public void run() {
+							JOptionPane.showMessageDialog(window.frame,
+									"Не удалось. Попробуйте еще раз :(",
+									"Неудача",
+									JOptionPane.WARNING_MESSAGE);
+						}
+					});
+				}
+			}
+			else {
+				window.frame.dispose();
+				try {
+					window.player.stop();
+					AuthorizationWindow window = new AuthorizationWindow();
+					window.frame.setVisible(true);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}	
+			}
+		}
+		else {
+			SwingUtilities.invokeLater(new Runnable() {
+				public void run() {
+					JOptionPane.showMessageDialog(window.frame,
+							"Интернет-подключение отсутствует.",
+							"Предупреждение",
+							JOptionPane.WARNING_MESSAGE);
+				}
+			});
+		}
+
+		return null; 
+	}
+	@Override
+	protected void done() {
+		window.progressBar.setIndeterminate(false);
+		window.progressBar.setVisible(false);
+	}
+}
+
+package beta;
+
+import java.util.List;
+
+import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
+
+import org.json.simple.JSONObject;
+
+import static beta.gettingSongsTask.getUnmaskedUrl;
+
+class processTask extends SwingWorker<Integer, Integer> {
+	private final MainWindow window;
+	
+	public processTask(MainWindow window) {
+		this.window = window;
+	}
+
+	@Override
+	protected Integer doInBackground() throws InterruptedException {
+		window.progressBar.setVisible(true);
+		final List<Object> selected = window.audiolist.getSelectedValuesList();
+		
+		SwingUtilities.invokeLater(new Runnable() {
+			public void run() {
+				window.progressBar.setString("Формируется очередь загрузки...");
+				window.progressBar.setMinimum(0);
+				window.progressBar.setMaximum(selected.size());
+			}
+		});
+		for (final Object o : selected) {
+			SwingUtilities.invokeLater(new Runnable() {
+				public void run() {
+					window.progressBar.setValue(selected.indexOf(o));
+				}
+			});
+			
+			boolean flag = true;
+			JSONObject mp3 = (JSONObject) VK_API_Methods.JSONaudio.get(VK_API_Methods.audiolist.indexOf(o));
+			String artist = mp3.get("artist").toString().replaceAll("amp;", "");
+			String title = mp3.get("title").toString().replaceAll("amp;", "");
+			String url = getUnmaskedUrl((String) mp3.get("url"));
+			String aid = mp3.get("aid").toString();
+			for (int j = 0; j < window.queue.size(); j++) {
+				if (window.queue.get(j).aid.equals(aid)) {
+					flag = false;
+					break;
+				}
+			}
+			if (AppFilesWorkMethods.OfflineAccess(mp3.get("aid").toString()).equals("") && flag) {
+				if (mp3.get("owner_id").toString().equals(Authorization.UID)) {
+					DownloadableAudio d = new DownloadableAudio(window.USER_PATH, artist, title, url, window.username, "", aid);
+					window.queue.add(d);
+				}
+				else {
+					try {
+						DownloadableAudio d = new DownloadableAudio(window.USER_PATH, artist, title, url, window.username, (VK_API_Methods.getNameById(mp3.get("owner_id").toString(), "nom")), aid);
+						window.queue.add(d);
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				}
+			}
+			
+		}
+		try {
+			new SaveWindow(window);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		window.cancelButton.setVisible(true);
+
+		return null; 
+	}
+	@Override
+	protected void done() {
+		window.progressBar.setVisible(false);
+	}
+}
+
+package beta;
+
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLConnection;
+import javax.imageio.ImageIO;
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
+import javax.swing.JTextField;
+import javax.swing.JButton;
+import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
+import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.awt.image.BufferedImage;
+
+import javax.swing.JLabel;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+
+class SaveWindow {
+	private JFrame frame;
+	private JButton savebutton;
+	private JTextField txtartist;
+	private JTextField txttitle;
+	private JLabel lblartist;
+	private JLabel lbltitle;
+
+	private final MainWindow window;
+	private DownloadableAudio downloadableAudio;
+
+	static SwingWorker<Integer, Integer> downloadTask;
+
+	public SaveWindow(DownloadableAudio downloadableAudio, MainWindow window) {
+		this.downloadableAudio = downloadableAudio;
+		this.window = window;
+
+		initialize();
+		listeners();
+		frame.setVisible(true);
+	}
+
+	public SaveWindow(MainWindow window){
+		this.window = window;
+
+		if (downloadTask == null)
+			StartDownload();	
+	}
+
+	private void initialize() {
+		BufferedImage logo32 = null;
+		try {
+			logo32 = ImageIO.read(getClass().getResource("/images/logo32.png"));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		/**
+		 * Фрейм окна
+		 */
+		frame = new JFrame("Загрузить песню");
+		frame.setBounds(0, 0, 335, 170);
+		frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+		frame.getContentPane().setLayout(null);
+		frame.setResizable(false);
+		frame.setIconImage(logo32);
+		frame.setLocationRelativeTo(null);
+
+		/**
+		 * Метка "Исполнитель"
+		 */
+		lblartist= new JLabel("Исполнитель");
+		lblartist.setBounds(10, 27, 95, 14);
+		frame.getContentPane().add(lblartist);
+
+		/**
+		 * Текстовое поле для изменения исполнителя песни
+		 */
+		txtartist = new JTextField();
+		txtartist.setText(downloadableAudio.artist);
+		txtartist.setBounds(95, 24, 214, 20);
+		frame.getContentPane().add(txtartist);
+		txtartist.setColumns(10);
+
+		/**
+		 * Метка "Название"
+		 */
+		lbltitle = new JLabel("Название");
+		lbltitle.setBounds(10, 60, 60, 14);
+		frame.getContentPane().add(lbltitle);
+
+		/**
+		 * Текстовое поле для изменения названия песни
+		 */
+		txttitle = new JTextField();
+		txttitle.setText(downloadableAudio.title);
+		txttitle.setBounds(95, 57, 215, 20);
+		frame.getContentPane().add(txttitle);
+		txttitle.setColumns(10);
+
+		/**
+		 * Кнопка сохранения аудиозаписи
+		 */
+		savebutton = new JButton("Загрузить");
+		savebutton.setBounds(98, 90, 120, 23);
+		frame.getContentPane().add(savebutton);		
+
+	}
+
+	private void listeners() {
+		/**
+		 * Обработчик ввода в TextField, обеспечивающий ограниченное возможное количество вводимых символов
+		 * чтобы избежать ошибок при сохранении файла
+		 */
+		DocumentListener d = new DocumentListener() {
+			public void insertUpdate(DocumentEvent arg0) {
+				if ((txtartist.getText().length() + txttitle.getText().length()) >= 220) {
+					savebutton.setEnabled(false);
+					frame.revalidate();
+				}	
+			}
+
+			public void removeUpdate(DocumentEvent e) {
+				if ((txtartist.getText().length() + txttitle.getText().length()) < 220) {
+					savebutton.setEnabled(true);
+					frame.revalidate();
+				}
+			}
+
+			@Override
+			public void changedUpdate(DocumentEvent e) {}
+		};
+
+		txtartist.getDocument().addDocumentListener(d);
+		txttitle.getDocument().addDocumentListener(d);
+
+		/**
+		 * Обработчик кнопки закрытия приложения
+		 */
+		frame.addWindowListener(new WindowAdapter() {
+			public void windowClosing(WindowEvent event) {
+				Object[] options = { "Да", "Нет" };
+				int n = JOptionPane.showOptionDialog(event.getWindow(),
+						"Вы действительно не хотите загружать?", "Подтверждение",
+						JOptionPane.YES_NO_OPTION,
+						JOptionPane.QUESTION_MESSAGE, null,  options, options[0]);
+				if (n == JOptionPane.YES_OPTION) event.getWindow().dispose();
+			}
+
+		});
+
+		/**
+		 * Обработчик кнопки сохранения аудио, которая добавляет очередной загружаемый файл в очередь
+		 */
+		savebutton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent event) {
+				window.queue.add(downloadableAudio);
+				frame.dispose();
+
+				window.cancelButton.setVisible(true);
+
+				if (downloadTask == null) 
+					StartDownload();	
+			}
+		});	
+	}
+
+	void StartDownload() {
+		downloadTask = new SwingWorker<Integer, Integer>() {
+			@Override
+			protected Integer doInBackground() throws IOException  {
+				while (window.queue.size() > 0) {
+					DownloadableAudio d = window.queue.get(0);
+					String path = d.USER_PATH + File.separator + d.downloader + File.separator + d.friend + File.separator + DownloadMethods.fixWndowsFileName(d.artist + " - " + d.title) + ".mp3";
+					if (path.length() >= 220) 
+						path = path.substring(0, 216) + ".mp3";
+
+					File destination = new File(path); 
+					destination.getParentFile().mkdir();
+
+					try {
+						URL u = new URL(d.url);
+						URLConnection connection = u.openConnection();   
+						connection.setReadTimeout(4000);
+						BufferedInputStream in = new BufferedInputStream(connection.getInputStream());                      
+						FileOutputStream out = new FileOutputStream(destination);   
+						long b = connection.getContentLength();
+
+						byte[] buf = new byte[4096];
+						int len;
+						while ((len = in.read(buf)) > 0) {
+							if (isCancelled()) return null;
+							out.write(buf, 0, len); 
+
+							String song = d.artist + " - "+ d.title;
+							long percent = destination.length()*100/b;
+
+							window.downloadProcess.setText("Загружается песня: " + (song.length() > 65? song.substring(0, 65) + "..." : song) + " " + Long.toString(percent) + "%  " + "Осталось скачать песен: " + window.queue.size());
+						}
+						out.close();
+						destination.setLastModified(connection.getLastModified());
+						in.close();       
+
+						window.queue.remove(0);
+
+						DownloadMethods.SongWriter(d.aid, d.downloader, d.friend, destination.getAbsolutePath());
+
+						SwingUtilities.invokeLater(new Runnable() {
+							public void run() {
+								window.audiolist.updateUI();
+								window.friendlist.updateUI();
+							}
+						});
+
+						window.offlineAudioCount.setText("Доступно офлайн: " + AppFilesWorkMethods.OfflineCount(d.downloader));
+					} catch (MalformedURLException e) {
+						e.printStackTrace();
+					} catch (IOException e) {
+						e.printStackTrace();
+						SwingUtilities.invokeLater(new Runnable() {
+							public void run() {
+								JOptionPane.showMessageDialog(window.frame,
+										"Загрузка прервана из-за отсутствия интернет-соединения.",
+										"Внимание",
+										JOptionPane.WARNING_MESSAGE);
+							}
+						});
+						window.queue.clear();
+						downloadTask.cancel(true);
+						return null;
+					}
+				}
+				window.downloadProcess.setText("Загрузка завершена!");
+				downloadTask = null;
+				try {
+					Thread.sleep(3000);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+				return 1;
+			}
+
+			@Override
+			protected void done() {
+				if (isCancelled()) {
+					downloadTask = null;
+					window.downloadProcess.setText("");
+					window.cancelButton.setVisible(false);
+				}
+				else {
+					downloadTask = null;
+					window.downloadProcess.setText("");
+					window.cancelButton.setVisible(false);
+				}
+			}
+		};
+		downloadTask.execute();
+	}
+
+}
+
+package beta;
+
+/**
+ * Created by Ekaterina Advolotkina on 17.04.2017.
+ */
+public class variablesSaver {
+    public static int i;
+
+    public static boolean isIsInterrupted() {
+        return isInterrupted;
+    }
+
+    public static void setIsInterrupted(boolean isInterrupted) {
+        variablesSaver.isInterrupted = isInterrupted;
+    }
+
+    public static boolean isInterrupted;
+
+    public static String getCurrSong(){
+        if(getUid().equals(Authorization.UID)){
+            return VK_API_Methods.audiolist.get(getI());
+        } else {
+            //System.out.println(VK_API_Methods.friendaudiolist.get(getI()));
+            return VK_API_Methods.friendaudiolist.get(getI());
+        }
+    }
+
+    public static int getCurrentSize() {
+        if(getUid().equals(Authorization.UID)){
+            setCurrentSize(VK_API_Methods.audiolist.size());
+        } else {
+            setCurrentSize(VK_API_Methods.friendaudiolist.size());
+        }
+        return currentSize;
+    }
+
+    public static void setCurrentSize(int currentSize) {
+        variablesSaver.currentSize = currentSize;
+    }
+
+    public static int currentSize;
+
+    public static int getI() {
+        return i;
+    }
+
+    public static void setI(int i) {
+        variablesSaver.i = i;
+    }
+
+    public static String getUid() {
+        return uid;
+    }
+
+    public static void setUid(String uid) {
+        setI(0);
+        setOffset(-50);
+        setCurrentSize(0);
+        variablesSaver.uid = uid;
+        isInterrupted = true;
+    }
+    public static void setUid(){
+        uid = Authorization.UID;
+    }
+
+    public static String uid;
+
+    public static int getOffset() {
+        setOffset(offset+50);
+        return offset;
+    }
+
+    public static void setOffset(int offset) {
+        variablesSaver.offset = offset;
+    }
+
+    public static int offset;
+}
+
+package beta;
+
+import java.io.IOException;
+import java.net.URL;
+import java.util.ArrayList;
+
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
+
+/**
+ * <p> Методы, работающие с VK API </p>
+ * @author Иван
+ * @methods Получение списка аудиозаписей, получение списка друзей, получение ФИО человека с VK, получения аватара человека с VK, получение количества песен человека с VK
+ * @value audiolist Список аудиозаписей с ВК
+ * <br> friendslist Список друзей с ВК
+ * <br> JSONfriens Массив response запроса друзей ВК
+ * <br> JSONaudio Массив response запроса аудиозаписей ВК
+ */
+class VK_API_Methods {
+	public static ArrayList<String> audiolist = new ArrayList<String>();
+	public static ArrayList<String> friendaudiolist = new ArrayList<>();
+	public static ArrayList<String> friendslist;
+	public static JSONArray JSONfriends;
+	public static JSONArray JSONaudio = new JSONArray();
+	public static JSONArray JSONfriendaudio = new JSONArray();
+
+
+
+	/**
+	 * Получает список друзкй с ВК 
+	 * @param uid Параметр, хранящий в себе айди человека, у кого получаем друзей
+	 * @return Список друзей (Имя Фамилия)
+	 * @throws IOException 
+	 * @throws ParseException 
+	 */
+	public static ArrayList<String> friendsGet(String uid) throws ParseException, IOException { // Получение списка друзей
+		friendslist = new ArrayList<String>();
+		String URL = "https://api.vk.com/method/friends.get?uid="+ uid + "&fields=uid,first_name,last_name&offset=0&access_token="+Authorization.ACCESS_TOKEN;
+
+		JSONParser parser = new JSONParser();
+		JSONObject jsonResponse = (JSONObject) parser.parse(NetworkMethods.getUrlSource(URL));
+		JSONfriends = (JSONArray) jsonResponse.get("response");
+
+        for (Object JSONfriend : JSONfriends) {
+            JSONObject friend = (JSONObject) JSONfriend;
+
+            String firstname = friend.get("first_name").toString();
+            String lastname = friend.get("last_name").toString();
+            String fullname = firstname + " " + lastname;
+            friendslist.add(fullname);
+        }
+
+		return friendslist;
+	}
+
+	/**
+	 * Получение  ФИО человека с ВК в соответствии с падежом
+	 * @param uid ID человека, у которого получаем ФИО
+	 * @param namecase Падеж для склонения имени и фамилии пользователя. Возможные значения: именительный – nom, родительный – gen, дательный – dat, винительный – acc, творительный – ins, предложный – abl. По умолчанию nom. 
+	 * @return ФИО в соответствии с падежом
+	 * @throws IOException 
+	 * @throws ParseException 
+	 */
+	public static String getNameById(String uid, String namecase) throws ParseException, IOException { // Получение ФИО в VK в соответствии с падежом
+		String URL = "https://api.vk.com/method/users.get?user_ids=" + uid + "&fields=photo_50,city,verified,home_town" + "&name_case=" + namecase;
+		JSONParser parser = new JSONParser();
+		JSONObject response = (JSONObject) parser.parse(NetworkMethods.getUrlSource(URL));
+		JSONArray arr = (JSONArray) response.get("response");
+		JSONObject human = (JSONObject) arr.get(0);
+        return human.get("first_name").toString() + " " +  human.get("last_name").toString();
+	}
+
+	/**
+	 * Получение аватара человека с ВК
+	 * @param uid ID человека, у которого получаем аватару
+	 * @return Ссылка на квадратную фотографию пользователя, имеющую ширину 50 пикселей. В случае отсутствия у пользователя фотографии возвращается стандартный аватар ВК
+	 * @throws IOException 
+	 * @throws ParseException 
+	 */
+	public static String getAvatarById(String uid) throws ParseException, IOException { // Получения аватара VK
+		String URL = "https://api.vk.com/method/users.get?user_ids=" + uid + "&fields=photo_50,city,verified,home_town&name_case=nom";
+		JSONParser parser = new JSONParser();
+		JSONObject response = (JSONObject) parser.parse(NetworkMethods.getUrlSource(URL));
+		JSONArray arr = (JSONArray) response.get("response");
+		JSONObject human = (JSONObject) arr.get(0);
+        return human.get("photo_50").toString();
+	}
+	
+	/**
+	 * Получение количества аудиозаписей в ВК
+	 * @param uid ID человека, у кого получаем кол-во аудиозаписей
+	 * @return Количество аудиозаписей
+	 * @throws IOException 
+	 * @throws ParseException 
+	 */
+	public static String AudioCount(String uid) throws ParseException, IOException { // Получаем количество аудиозаписей в VK
+        return String.valueOf(JSONaudio.size());
+	}
+	
+	/**
+	 * Добавляет данные о текущем сеансе в статистику посещаемости приложения в ВК.
+	 * @throws IOException
+	 */
+	public static void trackVisitor() throws IOException {
+		URL u = new URL("https://api.vk.com/method/stats.trackVisitor?access_token=" + Authorization.ACCESS_TOKEN);
+		u.openConnection().getInputStream();
+	}
+}
